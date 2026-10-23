@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
 } from "react";
 import {
   Link,
@@ -16,16 +15,17 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   Clock3,
   Keyboard,
+  PartyPopper,
   Play,
   RotateCcw,
-  ShieldCheck,
+  Settings2,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import { useApp } from "../app/AppContext";
-import { gameById, getCategory } from "../games/registry";
+import { accentStyle, gameById, getCategory } from "../games/registry";
 import {
   gameIds,
   type GameId,
@@ -35,6 +35,7 @@ import {
 } from "../domain/types";
 import { formatMetric, scoreGame } from "../domain/scoring";
 import { hashSeed, newSeed } from "../engine/random";
+import { useScheduler } from "../engine/useScheduler";
 import { Icon } from "../components/Icon";
 import { localDay } from "./progress";
 import { playCompletionSound, prepareCompletionSound } from "../engine/audio";
@@ -68,6 +69,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
   const day = online.challengeDay ?? localDay();
   const [stage, setStage] = useState<
     | "instructions"
+    | "countdown"
     | "practice"
     | "playing"
     | "practice-finished"
@@ -78,6 +80,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
     [practiceTrials, setPracticeTrials] = useState<Trial[]>([]);
   const [interruption, setInterruption] = useState("");
   const [variant, setVariant] = useState<"classic" | "remix">("classic");
+  const [countdownPractice, setCountdownPractice] = useState(false);
   const [onlineBusy, setOnlineBusy] = useState(false),
     [onlineError, setOnlineError] = useState("");
   const [assessmentInput, setAssessmentInput] = useState(
@@ -101,6 +104,11 @@ function GameSession({ gameId }: { gameId: GameId }) {
     [],
   );
   const active = stage === "playing" || stage === "practice";
+  const focused = active || stage === "countdown";
+  useEffect(() => {
+    document.body.classList.toggle("in-game", focused);
+    return () => document.body.classList.remove("in-game");
+  }, [focused]);
   const interrupt = useCallback(
     (reason: string) => {
       if (complete.current) return;
@@ -166,7 +174,6 @@ function GameSession({ gameId }: { gameId: GameId }) {
     token.current = issuedToken ?? null;
     startedDay.current = day;
     complete.current = false;
-    started.current = new Date().toISOString();
     input.current = issuedToken?.input_class ?? settings.input;
     if (audio.current && audio.current.state !== "closed")
       void audio.current.close();
@@ -175,7 +182,13 @@ function GameSession({ gameId }: { gameId: GameId }) {
       issuedToken?.seed ??
         (daily && !practice ? hashSeed(`${day}|${gameId}|v1`) : newSeed()),
     );
-    setStage(practice ? "practice" : "playing");
+    setCountdownPractice(practice);
+    setStage("countdown");
+  }
+  function beginPlay() {
+    // Timing starts when the engine mounts, after the countdown.
+    started.current = new Date().toISOString();
+    setStage(countdownPractice ? "practice" : "playing");
   }
   async function finish(trials: Trial[]) {
     if (complete.current) return;
@@ -248,148 +261,168 @@ function GameSession({ gameId }: { gameId: GameId }) {
         : gameId === "target-burst" || gameId === "orbit-track"
           ? Precision
           : Quiz;
+  const remixLabel =
+    gameId === "signal"
+      ? "Quick-fire"
+      : gameId === "echo-path"
+        ? "Reverse path"
+        : gameId === "grid-recall"
+          ? "Flash recall"
+          : gameId === "target-burst"
+            ? "Small targets"
+            : gameId === "orbit-track"
+              ? "Room to roam"
+              : "Relaxed pace · 60 seconds per question";
   return (
-    <div
-      className="page game-page"
-      style={{ "--accent": category.color } as CSSProperties}
-    >
-      <Link to="/games" className="back-link">
-        <ArrowLeft size={15} />
-        Back to playground
-      </Link>
-      <div className="game-page-heading">
-        <div>
-          <span className="eyebrow category-eyebrow">
-            <Icon name={game.icon} size={16} />
-            {category.name.toUpperCase()}
-          </span>
-          <h1>
-            {game.name}
-            <span className="title-period">.</span>
-          </h1>
-          <p>{game.tagline}</p>
-        </div>
-        <span className="duration-chip">
-          <Clock3 size={15} />
-          {game.duration}
-        </span>
-      </div>
+    <div className="page game-page" style={accentStyle(game.category)}>
       {stage === "instructions" && (
-        <div className="game-instructions panel">
-          <div className="instruction-visual">
-            <div className="instruction-orbit" />
-            <Icon name={game.icon} size={78} strokeWidth={1.2} />
-            <span>YOUR NEXT DISCOVERY</span>
-          </div>
-          <div className="instruction-copy">
-            <span className="eyebrow">LET’S PLAY</span>
-            <h2>{game.description}</h2>
-            <ol>
-              {game.instructions.map((instruction) => (
-                <li key={instruction}>{instruction}</li>
-              ))}
-            </ol>
-            {!["math-sprint", "symbol-match"].includes(gameId) && (
-              <label className="practice-variation">
-                Practice variation
-                <select
-                  aria-label="Practice variation"
-                  value={variant}
-                  onChange={(event) =>
-                    setVariant(event.target.value as "classic" | "remix")
-                  }
-                >
-                  <option value="classic">Classic practice</option>
-                  <option value="remix">
-                    {gameId === "signal"
-                      ? "Quick-fire"
-                      : gameId === "echo-path"
-                        ? "Reverse path"
-                        : gameId === "grid-recall"
-                          ? "Flash recall"
-                          : gameId === "target-burst"
-                            ? "Small targets"
-                            : gameId === "orbit-track"
-                              ? "Room to roam"
-                              : "Relaxed pace · 60 seconds per question"}
-                  </option>
-                </select>
-              </label>
-            )}
-            <div className="instruction-actions">
-              <button className="button primary" onClick={() => start()}>
-                <Play size={16} fill="currentColor" />
-                {daily ? "Start daily challenge" : "Start assessment"}
-              </button>
-              <button className="button secondary" onClick={() => start(true)}>
-                Try a practice round
-              </button>
+        <>
+          <Link to="/games" className="back-link">
+            <ArrowLeft size={16} strokeWidth={2.6} />
+            All games
+          </Link>
+          <section className="how-to-play">
+            <div className="how-to-art">
+              <span className="art-blob blob-one" />
+              <span className="art-blob blob-two" />
+              <Icon name={game.icon} size={96} strokeWidth={2.2} />
+              <span className="category-pill">{category.name}</span>
             </div>
-            <p className="small-note">
-              <ShieldCheck size={14} />
-              Local result. No account needed.{" "}
-              {game.keys && (
-                <>
-                  <Keyboard size={14} />
-                  {game.keys.join(" · ")}
-                </>
-              )}
-            </p>
-            {online.profile?.statistics_consent && !daily && (
-              <div className="rated-start">
-                <label>
-                  Online assessment input
-                  <select
-                    aria-label="Online assessment input"
-                    value={assessmentInput}
-                    onChange={(event) =>
-                      setAssessmentInput(event.target.value as InputClass)
-                    }
-                  >
-                    {[
-                      "mouse",
-                      "trackpad",
-                      "touch",
-                      ...(game.category !== "precision" ? ["keyboard"] : []),
-                    ].map((value) => (
-                      <option key={value}>{value}</option>
-                    ))}
-                  </select>
-                </label>
+            <div className="how-to-copy">
+              <h1>{game.name}</h1>
+              <p className="how-to-tagline">{game.description}</p>
+              <h2 className="how-to-label">How to play</h2>
+              <ol className="how-to-steps">
+                {game.instructions.map((instruction) => (
+                  <li key={instruction}>{instruction}</li>
+                ))}
+              </ol>
+              <div className="how-to-meta">
+                <span className="chip">
+                  <Clock3 size={14} strokeWidth={2.4} />
+                  {game.duration}
+                </span>
+                {game.keys && (
+                  <span className="chip">
+                    <Keyboard size={14} strokeWidth={2.4} />
+                    {game.keys.join(" ")}
+                  </span>
+                )}
+                {daily && (
+                  <span className="chip daily-chip">Daily challenge</span>
+                )}
+              </div>
+              <div className="instruction-actions">
+                <button className="button primary huge" onClick={() => start()}>
+                  <Play size={22} fill="currentColor" />
+                  {daily ? "Start daily challenge" : "Start assessment"}
+                </button>
                 <button
                   className="button secondary"
-                  disabled={onlineBusy}
-                  onClick={() => {
-                    setOnlineBusy(true);
-                    setOnlineError("");
-                    void online
-                      .issueAssessment(gameId, assessmentInput as InputClass)
-                      .then((issued) => start(false, issued))
-                      .catch((cause) => setOnlineError(cause.message))
-                      .finally(() => setOnlineBusy(false));
-                  }}
+                  onClick={() => start(true)}
                 >
-                  {onlineBusy
-                    ? "Preparing rated session…"
-                    : "Start today’s online assessment"}
+                  Try a practice round
                 </button>
-                <p className="small-note">
-                  One online opportunity per game per UTC day. Use the selected
-                  input throughout; local play stays unlimited.
-                </p>
               </div>
-            )}
-          </div>
-        </div>
+              <details className="more-options">
+                <summary>
+                  <Settings2 size={16} strokeWidth={2.4} />
+                  More options
+                </summary>
+                {!["math-sprint", "symbol-match"].includes(gameId) && (
+                  <label className="practice-variation">
+                    Practice variation
+                    <select
+                      aria-label="Practice variation"
+                      value={variant}
+                      onChange={(event) =>
+                        setVariant(event.target.value as "classic" | "remix")
+                      }
+                    >
+                      <option value="classic">Classic practice</option>
+                      <option value="remix">{remixLabel}</option>
+                    </select>
+                  </label>
+                )}
+                {online.profile?.statistics_consent && !daily && (
+                  <div className="rated-start">
+                    <label>
+                      Online assessment input
+                      <select
+                        aria-label="Online assessment input"
+                        value={assessmentInput}
+                        onChange={(event) =>
+                          setAssessmentInput(event.target.value as InputClass)
+                        }
+                      >
+                        {[
+                          "mouse",
+                          "trackpad",
+                          "touch",
+                          ...(game.category !== "precision"
+                            ? ["keyboard"]
+                            : []),
+                        ].map((value) => (
+                          <option key={value}>{value}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="button secondary"
+                      disabled={onlineBusy}
+                      onClick={() => {
+                        setOnlineBusy(true);
+                        setOnlineError("");
+                        void online
+                          .issueAssessment(
+                            gameId,
+                            assessmentInput as InputClass,
+                          )
+                          .then((issued) => start(false, issued))
+                          .catch((cause) => setOnlineError(cause.message))
+                          .finally(() => setOnlineBusy(false));
+                      }}
+                    >
+                      {onlineBusy
+                        ? "Preparing rated session…"
+                        : "Start today’s online assessment"}
+                    </button>
+                    <p className="small-note">
+                      One online opportunity per game per UTC day. Use the
+                      selected input throughout; local play stays unlimited.
+                    </p>
+                  </div>
+                )}
+                <div className="measurement-details">
+                  <h3>What this game measures</h3>
+                  <p>{game.measurement}</p>
+                  <p>
+                    Results describe your performance in this browser, with this
+                    input setup. They are not a measure of intelligence, health,
+                    or worth. <Link to="/methodology">How scoring works</Link>
+                  </p>
+                </div>
+              </details>
+            </div>
+          </section>
+        </>
       )}
       {onlineError && (
         <p className="notice warning" role="alert">
           {onlineError}
         </p>
       )}
+      {stage === "countdown" && (
+        <div className="game-stage countdown-stage">
+          <Countdown onDone={beginPlay} />
+          <p className="countdown-caption">
+            {countdownPractice ? "Practice round" : game.name} · get ready
+          </p>
+        </div>
+      )}
       {active && (
         <div
-          className="game-stage panel"
+          className="game-stage"
           onPointerCancel={() =>
             interrupt(
               "The touch gesture was interrupted. Start a fresh session when you’re ready.",
@@ -411,10 +444,28 @@ function GameSession({ gameId }: { gameId: GameId }) {
               input.current = "keyboard";
           }}
         >
+          <div className="game-stage-header">
+            <span className="stage-title">
+              <Icon name={game.icon} size={18} strokeWidth={2.4} />
+              {game.name}
+              {stage === "practice" && (
+                <span className="practice-tag">Practice · not saved</span>
+              )}
+            </span>
+            <button
+              className="quit-button"
+              onClick={() =>
+                interrupt(
+                  "Session ended by you. Nothing was added to your history.",
+                )
+              }
+            >
+              <X size={16} strokeWidth={2.8} />
+              End session
+            </button>
+          </div>
           <Suspense
-            fallback={
-              <div className="loading-state">Preparing your challenge…</div>
-            }
+            fallback={<div className="loading-state">Loading game…</div>}
           >
             <Engine
               key={`${seed}-${stage}`}
@@ -434,38 +485,24 @@ function GameSession({ gameId }: { gameId: GameId }) {
               onInterrupt={interrupt}
             />
           </Suspense>
-          <div className="game-stage-footer">
-            <span className="status-dot" />
-            {stage === "practice"
-              ? "PRACTICE · YOUR RESULT WILL NOT BE SAVED"
-              : "LOCAL ASSESSMENT · V1"}
-            <button
-              className="text-link"
-              onClick={() =>
-                interrupt(
-                  "Session ended by you. Nothing was added to your assessment history.",
-                )
-              }
-            >
-              End session
-            </button>
-          </div>
         </div>
       )}
       {stage === "practice-finished" && (
-        <div className="panel session-state">
+        <div className="session-state">
           <span className="state-icon">
-            <Check size={32} />
+            <PartyPopper size={44} strokeWidth={2.2} />
           </span>
-          <span className="eyebrow">PRACTICE COMPLETE</span>
           <h2>You’ve got the idea.</h2>
           <p>
-            {formatMetric(scoreGame(gameId, practiceTrials, 15).primary)} in
-            practice. This shorter session was not saved.
+            Practice score:{" "}
+            <strong>
+              {formatMetric(scoreGame(gameId, practiceTrials, 15).primary)}
+            </strong>
+            . Practice isn’t saved — ready for the real thing?
           </p>
           <div className="inline-actions">
-            <button className="button primary" onClick={() => start()}>
-              Start full assessment <ArrowRight size={16} />
+            <button className="button primary huge" onClick={() => start()}>
+              Start full assessment <ArrowRight size={20} strokeWidth={2.6} />
             </button>
             <button className="button secondary" onClick={() => start(true)}>
               Practice again
@@ -474,42 +511,56 @@ function GameSession({ gameId }: { gameId: GameId }) {
         </div>
       )}
       {stage === "interrupted" && (
-        <div className="panel session-state">
-          <TriangleAlert size={35} />
+        <div className="session-state">
+          <span className="state-icon warning">
+            <TriangleAlert size={40} strokeWidth={2.2} />
+          </span>
           <h2>A fresh start?</h2>
           <p>{interruption}</p>
           <div className="inline-actions">
-            <button className="button primary" onClick={() => start()}>
-              <RotateCcw size={16} />
+            <button className="button primary huge" onClick={() => start()}>
+              <RotateCcw size={20} strokeWidth={2.6} />
               Try again
             </button>
             <button
               className="button secondary"
               onClick={() => setStage("instructions")}
             >
-              Review instructions
+              Back to how to play
             </button>
           </div>
         </div>
       )}
       {stage === "saving" && (
-        <div className="panel session-state">
-          <h2>Connecting the dots…</h2>
-          <p>Saving your session to this browser.</p>
+        <div className="session-state">
+          <span className="state-icon spin" />
+          <h2>Counting your score…</h2>
         </div>
       )}
-      <details className="measurement-details">
-        <summary>
-          <ShieldCheck size={16} />
-          What this game measures
-        </summary>
-        <p>{game.measurement}</p>
-        <p>
-          Games describe your performance in this browser, with this input
-          setup. Results are not a measure of intelligence, health, or human
-          worth. <Link to="/methodology">Read the methodology.</Link>
-        </p>
-      </details>
+    </div>
+  );
+}
+const COUNTDOWN_STEPS = ["3", "2", "1", "GO!"];
+const COUNTDOWN_STEP_MS = 600;
+function Countdown({ onDone }: { onDone: () => void }) {
+  const [step, setStep] = useState(0);
+  const { schedule, clear } = useScheduler();
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  }, [onDone]);
+  useEffect(() => {
+    COUNTDOWN_STEPS.forEach((_, index) => {
+      if (index) schedule(() => setStep(index), index * COUNTDOWN_STEP_MS);
+    });
+    schedule(() => done.current(), COUNTDOWN_STEPS.length * COUNTDOWN_STEP_MS);
+    return clear;
+  }, [schedule, clear]);
+  return (
+    <div className="countdown" role="status" aria-live="assertive">
+      <span key={step} className={step === 3 ? "go" : ""}>
+        {COUNTDOWN_STEPS[step]}
+      </span>
     </div>
   );
 }

@@ -54,11 +54,8 @@ export default function Settings() {
   return (
     <div className="page settings-page">
       <div className="page-heading">
-        <span className="eyebrow">MAKE YOURSELF AT HOME</span>
-        <h1>Your playground. Your preferences.</h1>
-        <p>
-          Your data belongs to you. Keep it local, take a copy, or start fresh.
-        </p>
+        <h1>Settings</h1>
+        <p>Your name, your look, your data.</p>
       </div>
       <div role="status" aria-live="polite">
         {message && (
@@ -75,8 +72,8 @@ export default function Settings() {
       )}
       <section className="panel settings-section">
         <div>
-          <h2>Your local profile</h2>
-          <p>A name for your own discoveries. No account or email required.</p>
+          <h2>Player name</h2>
+          <p>Shown on your stats. No account needed.</p>
         </div>
         <form
           onSubmit={(event) => {
@@ -107,7 +104,7 @@ export default function Settings() {
       </section>
       <section className="panel settings-section">
         <div>
-          <h2>Your input setup</h2>
+          <h2>Input device</h2>
           <p>
             Mouse and trackpad cannot be reliably distinguished by the browser.
             Tell us which you use; comparable records stay grouped together.
@@ -134,8 +131,8 @@ export default function Settings() {
       </section>
       <section className="panel settings-section">
         <div>
-          <h2>Make it feel right</h2>
-          <p>Quiet by default. Clear feedback. Choose what works for you.</p>
+          <h2>Look & feel</h2>
+          <p>Theme, motion, and sound.</p>
         </div>
         <div className="preference-controls">
           <div className="theme-options">
@@ -175,7 +172,7 @@ export default function Settings() {
           <label className="toggle-row">
             <span>
               Completion sound
-              <small>A subtle note after your session ends.</small>
+              <small>A short chime when a game ends.</small>
             </span>
             <input
               type="checkbox"
@@ -189,7 +186,7 @@ export default function Settings() {
       </section>
       <section className="panel settings-section">
         <div>
-          <h2>Your local history</h2>
+          <h2>Your data</h2>
           <p>
             {sessions.length} sessions in this browser. Browser storage may be
             cleared or evicted; an exported backup gives you a copy.
@@ -262,7 +259,7 @@ export default function Settings() {
       <OnlineAccount />
       <section className="panel settings-section danger-section">
         <div>
-          <h2>A fresh start</h2>
+          <h2>Start fresh</h2>
           <p>
             Delete all local sessions, preferences, and circuit progress from
             this browser. Export a backup first if you want to keep them.

@@ -1,45 +1,55 @@
+import type { CSSProperties } from "react";
 import type { CategoryId, GameDefinition, GameId } from "../domain/types";
 
 export const categories: {
   id: CategoryId;
   name: string;
+  /** Bright fill used for tiles, buttons, and arena highlights. */
   color: string;
+  /** Darker companion for text on light surfaces and button shadows. */
+  deep: string;
   description: string;
 }[] = [
   {
     id: "reflexes",
     name: "Reflexes",
-    color: "#c4f76a",
+    color: "#ff8a3d",
+    deep: "#c2531a",
     description: "Find your fast.",
   },
   {
     id: "memory",
     name: "Memory",
-    color: "#c1a0ff",
+    color: "#8b5cf6",
+    deep: "#5b34c4",
     description: "Hold onto the details.",
   },
   {
     id: "focus",
     name: "Focus",
-    color: "#ffc877",
+    color: "#ffc93c",
+    deep: "#a87600",
     description: "Cut through the noise.",
   },
   {
     id: "reasoning",
     name: "Reasoning",
-    color: "#7fb8ff",
+    color: "#3b82f6",
+    deep: "#1d57c2",
     description: "See what comes next.",
   },
   {
     id: "precision",
     name: "Precision",
-    color: "#ff90b2",
+    color: "#ff4f8b",
+    deep: "#c21f5b",
     description: "Make every move count.",
   },
   {
     id: "processing",
     name: "Processing",
-    color: "#79dbcf",
+    color: "#14b8a6",
+    deep: "#0b7d71",
     description: "Think on your feet.",
   },
 ];
@@ -258,4 +268,13 @@ export const introGames: GameId[] = [
 ];
 export function getCategory(id: CategoryId) {
   return categories.find((category) => category.id === id)!;
+}
+export function accentStyle(id: CategoryId): CSSProperties {
+  const category = getCategory(id);
+  return {
+    "--accent": category.color,
+    "--accent-deep": category.deep,
+    // Yellow needs dark text; every other accent reads best with white.
+    "--accent-on": category.id === "focus" ? "#1f1b3a" : "#ffffff",
+  } as CSSProperties;
 }

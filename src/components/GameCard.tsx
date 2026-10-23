@@ -1,43 +1,50 @@
-import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Clock3 } from "lucide-react";
-import { getCategory } from "../games/registry";
+import { Clock3, Play, Trophy } from "lucide-react";
+import { accentStyle, getCategory } from "../games/registry";
 import type { GameDefinition, Session } from "../domain/types";
 import { bestSession, formatPrimary } from "../domain/scoring";
 import { Icon } from "./Icon";
 
-export function GameArt({ game }: { game: GameDefinition }) {
+export function GameArt({
+  game,
+  size = "card",
+}: {
+  game: GameDefinition;
+  size?: "card" | "hero";
+}) {
   return (
-    <div className={`game-art art-${game.category}`} aria-hidden="true">
-      <span className="art-orbit orbit-one" />
-      <span className="art-orbit orbit-two" />
+    <div
+      className={`game-art art-${game.category} art-${size}`}
+      aria-hidden="true"
+    >
+      <span className="art-blob blob-one" />
+      <span className="art-blob blob-two" />
       {game.category === "memory" ? (
         <div className="art-grid">
-          {Array.from({ length: 16 }, (_, i) => (
-            <span
-              key={i}
-              className={[1, 3, 4, 9, 10, 14].includes(i) ? "on" : ""}
-            />
+          {Array.from({ length: 9 }, (_, i) => (
+            <span key={i} className={[0, 4, 5, 7].includes(i) ? "on" : ""} />
           ))}
         </div>
       ) : game.category === "focus" ? (
         <div className="focus-words">
-          <span>BLUE</span>
-          <span>GREEN</span>
           <span>RED</span>
+          <span>BLUE</span>
         </div>
       ) : game.category === "processing" ? (
         <div className="art-symbols">
-          <span>◇</span>
+          <span>◆</span>
           <span>+</span>
-          <span>△</span>
+          <span>▲</span>
         </div>
       ) : (
-        <Icon name={game.icon} size={60} strokeWidth={1.25} />
+        <span className="art-icon">
+          <Icon
+            name={game.icon}
+            size={size === "hero" ? 84 : 58}
+            strokeWidth={2.4}
+          />
+        </span>
       )}
-      <span className="art-corner">
-        HR / {game.id.slice(0, 3).toUpperCase()}
-      </span>
     </div>
   );
 }
@@ -58,25 +65,28 @@ export function GameCard({
     <Link
       className="game-card"
       to={`/play/${game.id}`}
-      style={{ "--accent": category.color } as CSSProperties}
+      style={accentStyle(game.category)}
     >
       <GameArt game={game} />
+      {best ? (
+        <span className="card-badge best">
+          <Trophy size={13} strokeWidth={2.6} />
+          {formatPrimary(best)}
+        </span>
+      ) : (
+        <span className="card-badge new">New</span>
+      )}
       <div className="game-card-content">
-        <div className="card-category">
-          <span className="color-dot" />
-          {category.name}
-          <ArrowUpRight size={17} />
-        </div>
+        <span className="card-category">{category.name}</span>
         <h3>{game.name}</h3>
         <p>{game.description}</p>
         <div className="game-card-footer">
-          <span>
-            <Clock3 size={13} />
+          <span className="chip">
+            <Clock3 size={13} strokeWidth={2.4} />
             {game.duration}
           </span>
-          <span>
-            {best ? `Best ${formatPrimary(best)}` : "Discover your baseline"}
-            <span className="card-play">↗</span>
+          <span className="card-play" aria-hidden="true">
+            <Play size={16} fill="currentColor" />
           </span>
         </div>
       </div>

@@ -1,8 +1,8 @@
 import { useSearchParams } from "react-router-dom";
 import { useLayoutEffect, useRef } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 import { useApp } from "../app/AppContext";
-import { categories, games } from "../games/registry";
+import { accentStyle, categories, games } from "../games/registry";
 import { GameCard } from "../components/GameCard";
 import { Icon } from "../components/Icon";
 
@@ -32,25 +32,20 @@ export default function Catalog() {
   };
   return (
     <div className="page">
-      <div className="page-heading">
-        <span className="eyebrow">THE PLAYGROUND</span>
-        <h1>Follow your curiosity.</h1>
-        <p>Twelve ways to challenge yourself. Where will you start?</p>
-      </div>
-      <div className="catalog-controls">
+      <div className="page-heading heading-with-action">
+        <div>
+          <h1>All games</h1>
+          <p>12 quick games across 6 skills. Tap one to play.</p>
+        </div>
         <label className="search-field">
-          <Search size={18} />
+          <Search size={18} strokeWidth={2.6} />
           <input
             aria-label="Search games"
-            placeholder="Find your next challenge…"
+            placeholder="Search games"
             value={query}
             onChange={(event) => update("q", event.target.value)}
           />
         </label>
-        <span className="muted">
-          <SlidersHorizontal size={15} />
-          {filtered.length} games to explore
-        </span>
       </div>
       <div className="filter-tabs" aria-label="Filter by category">
         <button
@@ -63,11 +58,12 @@ export default function Catalog() {
         {categories.map((item) => (
           <button
             key={item.id}
+            style={accentStyle(item.id)}
             className={category === item.id ? "active" : ""}
             aria-pressed={category === item.id}
             onClick={() => update("category", item.id)}
           >
-            <Icon name={item.id} size={15} />
+            <Icon name={item.id} size={16} strokeWidth={2.6} />
             {item.name}
           </button>
         ))}
@@ -80,9 +76,9 @@ export default function Catalog() {
         </div>
       ) : (
         <div className="empty-state">
-          <Search size={35} />
+          <Search size={40} strokeWidth={2.4} />
           <h2>No games found.</h2>
-          <p>Try a different search or explore all six categories.</p>
+          <p>Try a different search.</p>
           <button
             className="button secondary"
             onClick={() => {

@@ -142,7 +142,7 @@ export const settingsSchema = z.object({
   input: z.enum(["mouse", "trackpad", "touch", "keyboard"]).default("mouse"),
   sound: z.boolean().default(false),
   reducedMotion: z.boolean().default(false),
-  theme: z.enum(["dark", "light"]).default("dark"),
+  theme: z.enum(["dark", "light"]).default("light"),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 export const defaultSettings: Settings = {
@@ -150,7 +150,7 @@ export const defaultSettings: Settings = {
   input: "mouse",
   sound: false,
   reducedMotion: false,
-  theme: "dark",
+  theme: "light",
 };
 export const backupSchema = z.object({
   format: z.literal("humanrank"),

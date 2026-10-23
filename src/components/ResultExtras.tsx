@@ -14,14 +14,10 @@ export function ResultExtras({ session }: { session: Session }) {
     [busy, setBusy] = useState(false);
   return (
     <>
-      <section className="panel session-notes">
+      <section className="card session-notes">
         <div>
-          <span className="eyebrow">YOUR PRIVATE FIELD NOTES</span>
-          <h2>What did you notice?</h2>
-          <p>
-            Optionally note the conditions of this session. Notes are included
-            in your local backup and excluded from public cards.
-          </p>
+          <h2>Notes</h2>
+          <p>Private. Saved in this browser and your backups only.</p>
         </div>
         <form
           onSubmit={(event) => {
@@ -39,7 +35,7 @@ export function ResultExtras({ session }: { session: Session }) {
             value={note}
             onChange={(event) => setNote(event.target.value)}
             maxLength={300}
-            placeholder="A small observation, for next time…"
+            placeholder="Tired? New mouse? Jot it down…"
           />
           <div className="inline-actions">
             <button className="button secondary">Save note</button>
@@ -50,8 +46,8 @@ export function ResultExtras({ session }: { session: Session }) {
         </form>
       </section>
       {online.user && (
-        <section className="panel share-panel">
-          <h2>Share a discovery.</h2>
+        <section className="card share-panel">
+          <h2>Share this result</h2>
           <p>
             Your public card contains the game, measurement, input, protocol,
             and date. It excludes your name, email, and private notes. Links

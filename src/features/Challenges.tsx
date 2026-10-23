@@ -9,7 +9,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { useApp } from "../app/AppContext";
-import { gameById, introGames } from "../games/registry";
+import { accentStyle, gameById, introGames } from "../games/registry";
 import { dailyGames, localDay, weeklyGames } from "./progress";
 import { Icon } from "../components/Icon";
 import { useOnline } from "../app/OnlineContext";
@@ -44,36 +44,28 @@ export default function Challenges() {
   return (
     <div className="page challenges-page">
       <div className="page-heading">
-        <span className="eyebrow">KEEP YOUR CURIOSITY MOVING</span>
-        <h1>A little challenge goes a long way.</h1>
-        <p>
-          Fresh combinations, personal milestones, and a reason to surprise
-          yourself.
-        </p>
+        <h1>Challenges</h1>
+        <p>Circuits, daily games, and weekly goals.</p>
       </div>
       <section
-        className={`panel intro-circuit ${params.get("circuit") === "intro" ? "featured" : ""}`}
+        className={`card intro-circuit ${params.get("circuit") === "intro" ? "featured" : ""}`}
       >
         <div className="circuit-copy">
           <span className="challenge-tag">
-            <Sparkles size={14} />
-            THE DISCOVERY CIRCUIT
+            <Sparkles size={14} strokeWidth={2.6} />
+            Starter circuit
           </span>
-          <h2>
-            Meet six sides
-            <br />
-            of yourself.
-          </h2>
+          <h2>Find your strengths</h2>
           <p>
-            One game from every category. A first look at your personal
-            performance profile. Pick up where you left off.
+            One game from each of the 6 skills, back to back. Pick up where you
+            left off any time.
           </p>
           <div className="circuit-facts">
-            <span>
-              <Clock3 size={15} />
-              About 6–8 minutes
+            <span className="chip">
+              <Clock3 size={14} strokeWidth={2.4} />
+              About 7 minutes
             </span>
-            <span>{introProgress.length} / 6 explored</span>
+            <span className="chip">{introProgress.length} / 6 done</span>
           </div>
           <div className="inline-actions">
             {nextIntro ? (
@@ -82,7 +74,7 @@ export default function Challenges() {
                 to={`/play/${nextIntro}?circuit=intro`}
               >
                 {introProgress.length
-                  ? "Continue discovering"
+                  ? "Continue circuit"
                   : "Discover my strengths"}
                 <ArrowRight size={17} />
               </Link>
@@ -101,7 +93,11 @@ export default function Challenges() {
         </div>
         <div className="circuit-steps">
           {introGames.map((id, index) => (
-            <Link key={id} to={`/play/${id}?circuit=intro`}>
+            <Link
+              key={id}
+              to={`/play/${id}?circuit=intro`}
+              style={accentStyle(gameById[id].category)}
+            >
               <span
                 className={`step-number ${introProgress.includes(id) ? "done" : ""}`}
               >
@@ -123,13 +119,10 @@ export default function Challenges() {
       </section>
       <section className="daily-section">
         <div className="section-heading">
-          <div>
-            <span className="eyebrow">A FRESH COMBINATION, EVERY DAY</span>
-            <h2>
-              <Flame size={25} />
-              Today’s circuit
-            </h2>
-          </div>
+          <h2>
+            <Flame size={24} strokeWidth={2.6} />
+            Daily challenge
+          </h2>
           <span className="muted">
             {new Date().toLocaleDateString(undefined, {
               month: "long",
@@ -142,8 +135,9 @@ export default function Challenges() {
           {daily.map((id, index) => (
             <Link
               to={`/play/${id}?circuit=daily`}
-              className="panel daily-card"
+              className={`daily-card ${doneToday.includes(id) ? "done" : ""}`}
               key={id}
+              style={accentStyle(gameById[id].category)}
             >
               <div className="daily-card-top">
                 <span>0{index + 1}</span>
@@ -156,14 +150,13 @@ export default function Challenges() {
                   <span>{gameById[id].duration}</span>
                 )}
               </div>
-              <Icon name={gameById[id].icon} size={38} strokeWidth={1.2} />
-              <span className="eyebrow">{gameById[id].category}</span>
+              <span className="daily-card-icon">
+                <Icon name={gameById[id].icon} size={34} strokeWidth={2.4} />
+              </span>
               <h3>{gameById[id].name}</h3>
               <p>{gameById[id].description}</p>
               <span className="text-link">
-                {doneToday.includes(id)
-                  ? "Replay the challenge"
-                  : "Take the challenge"}
+                {doneToday.includes(id) ? "Play again" : "Play"}
                 <ArrowRight size={17} />
               </span>
             </Link>
@@ -173,38 +166,36 @@ export default function Challenges() {
           {online.challengeDay
             ? "Daily challenges use shared seeds and the service’s UTC day."
             : "Daily challenges use shared seeds and your device’s local date."}{" "}
-          They earn participation milestones and have separate records from
-          assessments.
+          Daily scores are kept separate from your regular records.
         </p>
         {doneToday.length === 3 && (
           <div className="notice">
             <Trophy size={25} />
             <div>
-              <strong>Your daily dose of discovery, complete.</strong>
-              <p>
-                All three games are in your history. Come back tomorrow for a
-                new combination.
-              </p>
+              <strong>Daily challenge complete!</strong>
+              <p>Come back tomorrow for three new games.</p>
             </div>
           </div>
         )}
       </section>
-      <section className="panel weekly-panel">
+      <section className="card weekly-panel">
         <div>
-          <span className="eyebrow">THIS WEEK’S EXPLORATION</span>
-          <h2>Take the scenic route.</h2>
-          <p>
-            Try these six games this week. Variety counts here; your performance
-            rating never receives participation bonuses.
-          </p>
+          <span className="challenge-tag">This week</span>
+          <h2>Weekly mix</h2>
+          <p>Play these six games before Monday.</p>
           <span className="weekly-progress">
             {weeklyDone.length} of 6 explored
           </span>
         </div>
         <div className="weekly-games">
           {weekly.map((id) => (
-            <Link key={id} to={`/play/${id}`}>
-              <Icon name={gameById[id].icon} size={18} />
+            <Link
+              key={id}
+              to={`/play/${id}`}
+              style={accentStyle(gameById[id].category)}
+              className={weeklyDone.includes(id) ? "done" : ""}
+            >
+              <Icon name={gameById[id].icon} size={18} strokeWidth={2.4} />
               {gameById[id].name}
               {weeklyDone.includes(id) ? (
                 <Check size={15} className="success-text" />

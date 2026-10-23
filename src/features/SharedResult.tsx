@@ -56,16 +56,11 @@ export default function SharedResult() {
   return (
     <div className="page">
       <div className="page-heading">
-        <span className="eyebrow">A SHARED DISCOVERY</span>
-        <h1>
-          {summary
-            ? gameById[summary.gameId].name
-            : "A little curiosity, shared."}
-        </h1>
+        <h1>{summary ? gameById[summary.gameId].name : "Shared result"}</h1>
       </div>
       {summary ? (
-        <section className="panel session-state">
-          <span className="eyebrow">{summary.primary.label}</span>
+        <section className="session-state">
+          <span className="result-label">{summary.primary.label}</span>
           <div className="result-number">
             {summary.primary.value.toFixed(summary.primary.digits ?? 0)}
             <span>{summary.primary.unit}</span>
@@ -83,10 +78,10 @@ export default function SharedResult() {
           </Link>
         </section>
       ) : (
-        <section className="panel session-state">
+        <section className="session-state">
           <p role="status">{message}</p>
           <Link className="button primary" to="/games">
-            Make your own discovery <ArrowRight size={16} />
+            Play a game <ArrowRight size={16} />
           </Link>
         </section>
       )}

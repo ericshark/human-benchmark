@@ -29,6 +29,13 @@ async function verifyRecordedContract(page: Page) {
   expect(() => validateSession(raw, true)).not.toThrow();
 }
 
+// Games open with a 3-2-1 countdown before the engine mounts.
+async function skipCountdown(page: Page) {
+  await page.clock.runFor(2500);
+}
+async function openMoreOptions(page: Page) {
+  await page.getByText("More options", { exact: true }).click();
+}
 async function start(page: Page, game: string, practice = false) {
   await page.goto(`/play/${game}`);
   await page
@@ -37,6 +44,7 @@ async function start(page: Page, game: string, practice = false) {
       exact: true,
     })
     .click();
+  await skipCountdown(page);
   await page.locator(".round-line").waitFor();
 }
 async function finishSignal(page: Page, practice = false) {
@@ -59,7 +67,7 @@ test("discovery, catalog filters, methodology and responsive navigation", async 
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "There’s more to you." }),
+    page.getByRole("heading", { name: "Ready, set, play." }),
   ).toBeVisible();
   await page.getByRole("link", { name: "All 12 games", exact: true }).click();
   await expect(page.locator(".game-card")).toHaveCount(12);
@@ -171,6 +179,7 @@ test("early responses consume trials; restart cleans up pending events; resizing
     page.getByRole("heading", { name: "A fresh start?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await skipCountdown(page);
   await page.setViewportSize({ width: 900, height: 700 });
   await expect(
     page.getByText("The arena size changed. Start again with the new layout."),
@@ -205,9 +214,7 @@ for (const game of [
       await page.clock.runFor(750);
     }
     await expect(page).toHaveURL(/\/results\//);
-    await expect(page.locator(".result-main")).toContainText(
-      "Local assessment",
-    );
+    await expect(page.locator(".result-main")).toContainText("Assessment");
     await expect(page.locator(".result-number")).not.toBeEmpty();
     await verifyRecordedContract(page);
   });
@@ -338,6 +345,7 @@ test("introductory circuit survives navigation and produces a six-category initi
     await page
       .getByRole("button", { name: "Start assessment", exact: true })
       .click();
+    await skipCountdown(page);
     await page.locator(".round-line").waitFor();
     await page.clock.runFor(durations[index]);
     await expect(page).toHaveURL(/\/results\//);
@@ -426,15 +434,19 @@ test("quick-fire practice is playable and relaxed practice gives time to think",
 }) => {
   await page.clock.install();
   await page.goto("/play/signal");
+  await openMoreOptions(page);
   await page.getByLabel("Practice variation").selectOption("remix");
   await page.getByRole("button", { name: "Try a practice round" }).click();
+  await skipCountdown(page);
   await finishSignal(page, true);
   await expect(
     page.getByRole("heading", { name: "You’ve got the idea." }),
   ).toBeVisible();
   await page.goto("/play/crossroads");
+  await openMoreOptions(page);
   await page.getByLabel("Practice variation").selectOption("remix");
   await page.getByRole("button", { name: "Try a practice round" }).click();
+  await skipCountdown(page);
   await page.locator(".answer-button").first().waitFor();
   await page.clock.runFor(6000);
   await expect(page.locator(".answer-button").first()).toBeEnabled();
@@ -446,8 +458,10 @@ test("reverse-path practice accepts the observed sequence in reverse order", asy
 }) => {
   await page.clock.install();
   await page.goto("/play/echo-path");
+  await openMoreOptions(page);
   await page.getByLabel("Practice variation").selectOption("remix");
   await page.getByRole("button", { name: "Try a practice round" }).click();
+  await skipCountdown(page);
   await page.locator(".round-line").waitFor();
   for (let round = 0; round < 3; round++) {
     const level = parseInt(

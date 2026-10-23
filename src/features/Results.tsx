@@ -1,15 +1,22 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useMemo } from "react";
 import {
   ArrowRight,
+  BarChart3,
+  Check,
   Download,
   RotateCcw,
   ShieldCheck,
-  Sparkles,
   Trophy,
   TriangleAlert,
 } from "lucide-react";
 import { useApp } from "../app/AppContext";
-import { gameById, getCategory, introGames } from "../games/registry";
+import {
+  accentStyle,
+  gameById,
+  getCategory,
+  introGames,
+} from "../games/registry";
 import {
   bestSession,
   comparable,
@@ -21,7 +28,8 @@ import {
 } from "../domain/scoring";
 import { HistoryChart, TrialChart } from "../components/Charts";
 import { Icon } from "../components/Icon";
-import { dailyGames } from "./progress";
+import { dailyGames, playerProgress, sessionXp } from "./progress";
+import { Confetti } from "../components/Confetti";
 import { PopulationComparison } from "../components/OnlineRatings";
 import { ResultExtras } from "../components/ResultExtras";
 
@@ -30,6 +38,11 @@ export default function Results() {
     [params] = useSearchParams();
   const { sessions, loading, introProgress, storageError } = useApp();
   const session = sessions.find((item) => item.id === sessionId);
+  const progress = useMemo(() => playerProgress(sessions), [sessions]);
+  const earnedXp = useMemo(
+    () => (sessionId ? sessionXp(sessions).get(sessionId)?.xp : undefined),
+    [sessions, sessionId],
+  );
   if (loading)
     return <div className="page loading-state">Opening your result…</div>;
   if (!session)
@@ -89,15 +102,17 @@ export default function Results() {
     canvas.height = 630;
     const ctx = canvas.getContext("2d");
     if (!ctx || !session) return;
-    ctx.fillStyle = "#111410";
+    ctx.fillStyle = "#fff8ec";
     ctx.fillRect(0, 0, 1200, 630);
-    ctx.fillStyle = "#c4f76a";
+    ctx.fillStyle = category.color;
+    ctx.fillRect(0, 0, 1200, 18);
+    ctx.fillStyle = "#1f1b3a";
     ctx.font = "bold 36px sans-serif";
-    ctx.fillText("humanrank.", 75, 90);
-    ctx.fillStyle = "#a8b0a2";
+    ctx.fillText("HumanRank", 75, 90);
+    ctx.fillStyle = category.deep;
     ctx.font = "24px sans-serif";
     ctx.fillText(`${category.name.toUpperCase()}  /  ${game.name}`, 75, 195);
-    ctx.fillStyle = "#f0f2e9";
+    ctx.fillStyle = "#1f1b3a";
     ctx.font = "bold 100px sans-serif";
     ctx.fillText(
       validPrimary ? formatMetric(result.primary) : "No valid response",
@@ -106,7 +121,7 @@ export default function Results() {
     );
     ctx.font = "30px sans-serif";
     ctx.fillText(result.primary.label, 75, 395);
-    ctx.fillStyle = "#a8b0a2";
+    ctx.fillStyle = "#6b6489";
     ctx.font = "22px sans-serif";
     ctx.fillText(
       `${session.mode === "daily" ? "Daily challenge" : "Local assessment"} · ${session.input} · protocol v1 · ${new Date(session.completedAt).toLocaleDateString()}`,
@@ -124,25 +139,20 @@ export default function Results() {
     link.href = canvas.toDataURL("image/png");
     link.click();
   }
+  const typical =
+    measuredHistory.length >= 2
+      ? formatMetric({
+          ...result.primary,
+          value: median(
+            measuredHistory
+              .slice(0, 5)
+              .map((item) => scoreSession(item).primary.value),
+          ),
+        })
+      : "—";
   return (
-    <div
-      className="page results-page"
-      style={{ "--accent": category.color } as React.CSSProperties}
-    >
-      <div className="page-heading">
-        <span className="eyebrow">
-          <Icon name={game.icon} size={16} />
-          {game.name.toUpperCase()} · SESSION COMPLETE
-        </span>
-        <h1>
-          {record ? "A new personal best." : "A little more you, discovered."}
-        </h1>
-        <p>
-          {record
-            ? "That’s progress you can put a number on."
-            : "One challenge. A new perspective. Here’s how it went."}
-        </p>
-      </div>
+    <div className="page results-page" style={accentStyle(game.category)}>
+      {record && <Confetti />}
       {!!session.flags.length && (
         <div className="notice warning" role="alert">
           <TriangleAlert size={19} />
@@ -150,17 +160,30 @@ export default function Results() {
             <strong>Measurement needs a second look</strong>
             <p>
               {session.flags.join(" ")} This session is in your history but
-              excluded from records and coverage.
+              excluded from records, XP, and coverage.
             </p>
           </div>
         </div>
       )}
-      <section className="result-hero panel">
+      <section className={`result-hero ${record ? "record" : ""}`}>
         <div className="result-main">
-          <span className="result-game-icon">
-            <Icon name={game.icon} size={28} />
+          <span className="result-game">
+            <span className="result-game-icon">
+              <Icon name={game.icon} size={20} strokeWidth={2.4} />
+            </span>
+            {game.name}
+            {session.mode === "daily" && (
+              <span className="chip daily-chip">Daily</span>
+            )}
           </span>
-          <span className="eyebrow">{result.primary.label.toUpperCase()}</span>
+          {record ? (
+            <span className="record-banner">
+              <Trophy size={20} strokeWidth={2.6} />
+              New personal best!
+            </span>
+          ) : (
+            <span className="result-label">{result.primary.label}</span>
+          )}
           <div className="result-number">
             {validPrimary ? (
               <>
@@ -171,62 +194,97 @@ export default function Results() {
               <span>No valid responses</span>
             )}
           </div>
-          <p>
+          {record && (
+            <span className="result-label">{result.primary.label}</span>
+          )}
+          <p className="result-meta">
             {result.correct} correct{" "}
             {game.id === "orbit-track" ? "samples" : "responses"} ·{" "}
-            {session.mode === "daily" ? "Daily circuit" : "Local assessment"} ·{" "}
+            {session.mode === "daily" ? "Daily circuit" : "Assessment"} ·{" "}
             {session.input}
           </p>
+          {earnedXp !== undefined && (
+            <div className="xp-gain">
+              <span className="xp-chip">+{earnedXp} XP</span>
+              <span className="xp-level">Level {progress.level}</span>
+              <span className="level-meter large" aria-hidden="true">
+                <span
+                  style={{
+                    width: `${(progress.levelXp / progress.nextLevelXp) * 100}%`,
+                  }}
+                />
+              </span>
+            </div>
+          )}
           <div className="result-badges">
             <span>
-              <ShieldCheck size={14} />
+              <ShieldCheck size={14} strokeWidth={2.4} />
               {storageError
                 ? "Available for this visit · export to keep"
                 : "Saved to this browser"}
             </span>
-            {record && (
-              <span className="record-badge">
-                <Trophy size={14} />
-                Personal best
-              </span>
-            )}
           </div>
         </div>
         <div className="result-comparisons">
           <div>
-            <span>Best-scoring session · same setup</span>
+            <span>Your best</span>
             <strong>
               {best && hasPrimaryMeasurement(best)
                 ? formatMetric(scoreSession(best).primary)
-                : "Not established"}
+                : "—"}
             </strong>
           </div>
           <div>
-            <span>Typical recent form</span>
-            <strong>
-              {measuredHistory.length >= 2
-                ? formatMetric({
-                    ...result.primary,
-                    value: median(
-                      measuredHistory
-                        .slice(0, 5)
-                        .map((item) => scoreSession(item).primary.value),
-                    ),
-                  })
-                : "Building your baseline"}
-            </strong>
+            <span>Last time</span>
+            <strong>{previous ? formatPrimary(previous) : "First try!"}</strong>
           </div>
           <div>
-            <span>Previous attempt</span>
-            <strong>
-              {previous ? formatPrimary(previous) : "This is your first. Nice."}
-            </strong>
+            <span>Typical</span>
+            <strong>{typical}</strong>
           </div>
         </div>
       </section>
+      <div className="result-actions">
+        <Link
+          className="button primary huge"
+          to={`/play/${game.id}${circuit ? `?circuit=${circuit}` : ""}`}
+        >
+          <RotateCcw size={20} strokeWidth={2.6} />
+          Play again
+        </Link>
+        {circuit ? (
+          nextGame ? (
+            <Link
+              className="button secondary huge"
+              to={`/play/${nextGame}?circuit=${circuit}`}
+            >
+              Next: {gameById[nextGame].name}
+              <ArrowRight size={20} strokeWidth={2.6} />
+            </Link>
+          ) : (
+            <Link className="button secondary huge" to="/challenges">
+              <Check size={20} strokeWidth={2.6} />
+              Circuit complete
+            </Link>
+          )
+        ) : (
+          <Link className="button secondary huge" to={`/play/${suggestion}`}>
+            Try {gameById[suggestion].name}
+            <ArrowRight size={20} strokeWidth={2.6} />
+          </Link>
+        )}
+        <button
+          className="button icon-button"
+          onClick={downloadCard}
+          aria-label="Save result card"
+          title="Save result card"
+        >
+          <Download size={20} strokeWidth={2.4} />
+        </button>
+      </div>
       <div className="metric-grid">
         {result.metrics.map((metric) => (
-          <div className="metric-card panel" key={metric.label}>
+          <div className="metric-card" key={metric.label}>
             <span>{metric.label}</span>
             <strong>
               {metric.label.includes("Consistency") && result.correct < 2
@@ -240,113 +298,74 @@ export default function Results() {
           </div>
         ))}
       </div>
-      <p className="small-note">
-        A personal record is your best full session under the published scoring
-        rule, including error penalties.
-      </p>
-      <div className="result-actions">
-        <Link
-          className="button primary"
-          to={`/play/${game.id}${circuit ? `?circuit=${circuit}` : ""}`}
-        >
-          <RotateCcw size={16} />
-          Play again
-        </Link>
-        {circuit ? (
-          nextGame ? (
-            <Link
-              className="button secondary"
-              to={`/play/${nextGame}?circuit=${circuit}`}
-            >
-              Next: {gameById[nextGame].name}
-              <ArrowRight size={16} />
-            </Link>
-          ) : (
-            <Link className="button secondary" to="/challenges">
-              <CheckIcon />
-              Circuit complete
-            </Link>
-          )
-        ) : (
-          <Link className="button secondary" to={`/play/${suggestion}`}>
-            Try {gameById[suggestion].name}
-            <ArrowRight size={16} />
-          </Link>
-        )}
-        <button className="button ghost" onClick={downloadCard}>
-          <Download size={16} />
-          Save result card
-        </button>
-      </div>
-      <div className="result-chart-grid">
-        <section className="panel chart-panel">
-          <div className="section-heading">
-            <h2>Your session, in detail</h2>
-            <span className="muted">{session.trials.length} observations</span>
-          </div>
-          <TrialChart session={session} />
-          <p className="small-note">
-            {game.id === "orbit-track"
-              ? "Lower bars show less tracking error. Display samples are spaced through the full recording."
-              : "Each bar is a trial. Coral marks errors, false starts, or timeouts."}
-          </p>
-          <details>
-            <summary>View all trial data</summary>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Trial</th>
-                    <th>Outcome</th>
-                    <th>Time</th>
-                    <th>Condition / level</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {session.trials.slice(0, 100).map((trial) => (
-                    <tr key={trial.index}>
-                      <td>{trial.index + 1}</td>
-                      <td>{trial.outcome}</td>
-                      <td>{trial.latency.toFixed(0)} ms</td>
-                      <td>{trial.condition ?? trial.level ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <details className="result-details">
+        <summary>
+          <BarChart3 size={18} strokeWidth={2.4} />
+          See details & charts
+        </summary>
+        <div className="result-chart-grid">
+          <section className="card chart-panel">
+            <div className="section-heading">
+              <h2>This session</h2>
+              <span className="muted">{session.trials.length} trials</span>
             </div>
-            {session.trials.length > 100 && (
-              <p>
-                First 100 shown. Export your history for the full recording.
-              </p>
-            )}
-          </details>
-        </section>
-        <section className="panel chart-panel">
-          <div className="section-heading">
-            <h2>Your progress</h2>
-            <span className="muted">Same mode + input</span>
+            <TrialChart session={session} />
+            <p className="small-note">
+              {game.id === "orbit-track"
+                ? "Lower bars show less tracking error. Display samples are spaced through the full recording."
+                : "Each bar is a trial. Pink bars are errors, false starts, or timeouts."}
+            </p>
+            <details>
+              <summary>View all trial data</summary>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Trial</th>
+                      <th>Outcome</th>
+                      <th>Time</th>
+                      <th>Condition / level</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {session.trials.slice(0, 100).map((trial) => (
+                      <tr key={trial.index}>
+                        <td>{trial.index + 1}</td>
+                        <td>{trial.outcome}</td>
+                        <td>{trial.latency.toFixed(0)} ms</td>
+                        <td>{trial.condition ?? trial.level ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {session.trials.length > 100 && (
+                <p>
+                  First 100 shown. Export your history for the full recording.
+                </p>
+              )}
+            </details>
+          </section>
+          <section className="card chart-panel">
+            <div className="section-heading">
+              <h2>Your progress</h2>
+              <span className="muted">Same mode + input</span>
+            </div>
+            <HistoryChart sessions={history} />
+          </section>
+        </div>
+        <div className="notice">
+          <ShieldCheck size={21} />
+          <div>
+            <PopulationComparison session={session} />
           </div>
-          <HistoryChart sessions={history} />
-        </section>
-      </div>
-      <div className="notice">
-        <ShieldCheck size={21} />
-        <div>
-          <PopulationComparison session={session} />
         </div>
-      </div>
+        <p className="small-note">
+          A personal best is your best full session under the published scoring
+          rule, including error penalties.
+        </p>
+      </details>
       <ResultExtras key={session.id} session={session} />
-      <Link className="next-discovery panel" to="/profile">
-        <Sparkles size={24} />
-        <div>
-          <h3>See the bigger picture.</h3>
-          <p>Find this result in your personal performance profile.</p>
-        </div>
-        <ArrowRight size={20} />
-      </Link>
     </div>
   );
-}
-function CheckIcon() {
-  return <Trophy size={16} />;
 }

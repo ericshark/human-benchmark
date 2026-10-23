@@ -1,6 +1,7 @@
 import type { GameId, Session } from "../domain/types";
 import { games } from "../games/registry";
 import { hashSeed, seededRandom, shuffle } from "../engine/random";
+import { bestSession } from "../domain/scoring";
 
 export function localDay(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -110,4 +111,69 @@ export function achievements(sessions: Session[]) {
       progress: "Daily circuit",
     },
   ];
+}
+
+export const XP_REWARDS = { game: 100, daily: 50, record: 150 } as const;
+
+/**
+ * XP earned by each saved session. A record bonus is only granted when a
+ * session strictly beats every earlier comparable session, so the very first
+ * attempt at a game never counts as a personal best.
+ */
+export function sessionXp(
+  sessions: Session[],
+): Map<string, { xp: number; record: boolean }> {
+  const earned = new Map<string, { xp: number; record: boolean }>();
+  const groups = new Map<string, Session[]>();
+  for (const session of sessions) {
+    if (session.mode === "practice" || session.flags.length) continue;
+    const key = [
+      session.gameId,
+      session.mode,
+      session.version,
+      session.input,
+    ].join("|");
+    groups.set(key, [...(groups.get(key) ?? []), session]);
+  }
+  for (const group of groups.values()) {
+    group.sort((a, b) => a.completedAt.localeCompare(b.completedAt));
+    let best: Session | undefined;
+    for (const session of group) {
+      const leader = bestSession(best ? [best, session] : [session]);
+      const record = !!best && leader === session;
+      best = leader;
+      earned.set(session.id, {
+        xp:
+          XP_REWARDS.game +
+          (session.mode === "daily" ? XP_REWARDS.daily : 0) +
+          (record ? XP_REWARDS.record : 0),
+        record,
+      });
+    }
+  }
+  return earned;
+}
+
+/** Total XP needed to reach a level: 0, 100, 300, 600, 1000, … */
+export function levelThreshold(level: number): number {
+  return (XP_REWARDS.game * (level - 1) * level) / 2;
+}
+export function playerProgress(sessions: Session[]) {
+  let xp = 0,
+    records = 0;
+  for (const value of sessionXp(sessions).values()) {
+    xp += value.xp;
+    if (value.record) records++;
+  }
+  let level = 1;
+  while (xp >= levelThreshold(level + 1)) level++;
+  const floor = levelThreshold(level),
+    ceiling = levelThreshold(level + 1);
+  return {
+    xp,
+    level,
+    levelXp: xp - floor,
+    nextLevelXp: ceiling - floor,
+    records,
+  };
 }

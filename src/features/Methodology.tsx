@@ -6,17 +6,10 @@ export default function Methodology() {
   return (
     <div className="page methodology-page">
       <div className="page-heading">
-        <span className="eyebrow">
-          <ShieldCheck size={16} />
-          BEHIND THE NUMBERS
-        </span>
-        <h1>
-          Curiosity deserves
-          <br />a little clarity.
-        </h1>
+        <h1>How scoring works</h1>
         <p>What we measure, what we show, and where the limits are.</p>
       </div>
-      <div className="methodology-intro panel">
+      <div className="methodology-intro card">
         <h2>Your play. Your actual results.</h2>
         <p>
           HumanRank measures performance in browser games. Your history starts
@@ -31,7 +24,7 @@ export default function Methodology() {
       </div>
       <div className="methodology-grid">
         <section className="panel">
-          <span className="eyebrow">01 / MEASUREMENT</span>
+          <span className="eyebrow">1 · Measurement</span>
           <h2>Milliseconds, with context.</h2>
           <p>
             We use a monotonic browser clock and align visual stimuli to
@@ -46,7 +39,7 @@ export default function Methodology() {
           </p>
         </section>
         <section className="panel">
-          <span className="eyebrow">02 / PERSONAL RECORDS</span>
+          <span className="eyebrow">2 · Personal bests</span>
           <h2>Same game. Same conditions.</h2>
           <p>
             Records and trends are grouped by game version, mode, and input.
@@ -60,7 +53,7 @@ export default function Methodology() {
           </p>
         </section>
         <section className="panel">
-          <span className="eyebrow">03 / POPULATION RANKINGS</span>
+          <span className="eyebrow">3 · Rankings</span>
           <h2>Real players come first.</h2>
           <p>
             Percentiles, category ratings, and HumanRank are currently
@@ -75,7 +68,7 @@ export default function Methodology() {
           </p>
         </section>
         <section className="panel">
-          <span className="eyebrow">04 / PROFILE RARITY</span>
+          <span className="eyebrow">4 · Profile rarity</span>
           <h2>Unusual is its own dimension.</h2>
           <p>
             Strong overall performance and an unusual balance of results are
@@ -89,9 +82,8 @@ export default function Methodology() {
           </p>
         </section>
       </div>
-      <section className="panel protocol-list">
-        <span className="eyebrow">GAME PROTOCOLS / VERSION 1</span>
-        <h2>Every game has its own yardstick.</h2>
+      <section className="card protocol-list">
+        <h2>Game by game</h2>
         {games.map((game) => (
           <details key={game.id}>
             <summary>
@@ -100,7 +92,7 @@ export default function Methodology() {
             </summary>
             <p>{game.measurement}</p>
             <Link className="text-link" to={`/play/${game.id}`}>
-              Try this game <ArrowRight size={14} />
+              Play this game <ArrowRight size={14} />
             </Link>
           </details>
         ))}

@@ -49,11 +49,11 @@ export function OnlineRatingSummary() {
     };
   }, [online.user, online.profile?.statistics_consent, settings.input]);
   return (
-    <section className="panel rank-preview">
+    <section className="card rank-preview">
       <div className="rank-icon">
-        <Sparkles size={25} />
+        <Sparkles size={22} strokeWidth={2.6} />
       </div>
-      <span className="eyebrow">HUMANRANK & PROFILE RARITY</span>
+      <span className="eyebrow">HumanRank score</span>
       {rating?.index !== undefined ? (
         <>
           <h2>
@@ -133,25 +133,21 @@ export function OnlineRatingSummary() {
         </>
       ) : (
         <>
-          <h2>
-            Good data
-            <br />
-            comes first.
-          </h2>
+          <h2>Coming soon</h2>
           <p>
             {message ||
               rating?.reason ||
-              "Your personal measurements are ready as you play. Population rankings need real, comparable player data."}
+              "Rankings against other players unlock once enough real players have comparable results. Your personal stats work right now."}
           </p>
           <span className="availability-tag">
             <LockKeyhole size={13} />
-            Awaiting qualifying evidence
+            Waiting for enough players
             {rating ? ` · ${rating.n} profiles` : ""}
           </span>
         </>
       )}
       <Link to="/methodology" className="text-link">
-        See what’s needed <ArrowUpRight size={14} />
+        How rankings work <ArrowUpRight size={14} />
       </Link>
     </section>
   );
@@ -192,7 +188,7 @@ export function PopulationComparison({ session }: { session: Session }) {
         </>
       ) : (
         <>
-          <strong>Personal insight, grounded in your play.</strong>
+          <strong>Rankings aren’t available yet.</strong>
           <p>
             {comparison?.reason ||
               "Population comparisons are not available yet. HumanRank only shows percentiles and profile rarity when enough comparable, qualifying player data exists."}{" "}

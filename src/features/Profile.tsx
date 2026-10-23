@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -6,18 +6,26 @@ import {
   CalendarDays,
   Check,
   Flame,
-  Sparkles,
+  Lock,
+  Medal,
+  Play,
+  Settings2,
   Trophy,
 } from "lucide-react";
 import { useApp } from "../app/AppContext";
-import { categories, gameById, games } from "../games/registry";
+import { accentStyle, categories, gameById, games } from "../games/registry";
 import { bestSession, formatPrimary } from "../domain/scoring";
 import type { GameId, InputClass, Mode } from "../domain/types";
 import { CoverageWheel, HistoryChart } from "../components/Charts";
 import { Icon } from "../components/Icon";
 import { ProfileExport } from "../components/ProfileExport";
 import { OnlineRatingSummary } from "../components/OnlineRatings";
-import { achievements, activeDays, currentStreak } from "./progress";
+import {
+  achievements,
+  activeDays,
+  currentStreak,
+  playerProgress,
+} from "./progress";
 
 export default function Profile() {
   const { sessions, settings, loading } = useApp();
@@ -36,6 +44,7 @@ export default function Profile() {
       !session.flags.length,
   );
   const earned = achievements(sessions);
+  const progress = useMemo(() => playerProgress(sessions), [sessions]);
   const recommended =
     games.find((game) => !played.has(game.id)) ??
     games.find(
@@ -44,159 +53,168 @@ export default function Profile() {
     ) ??
     games[0];
   if (loading)
-    return <div className="page loading-state">Opening your profile…</div>;
+    return <div className="page loading-state">Loading your stats…</div>;
   return (
     <div className="page profile-page">
-      <div className="page-heading heading-with-action">
-        <div>
-          <span className="eyebrow">YOUR PERSONAL FIELD NOTES</span>
-          <h1>A little more you.</h1>
-          <p>
-            {settings.name}, every challenge adds another piece to the picture.
-          </p>
+      <section className="player-card">
+        <span className="player-avatar" aria-hidden="true">
+          {settings.name.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="player-info">
+          <h1>{settings.name}</h1>
+          <div className="player-level">
+            <span className="level-badge large">{progress.level}</span>
+            <div>
+              <strong>Level {progress.level}</strong>
+              <span className="level-meter large" aria-hidden="true">
+                <span
+                  style={{
+                    width: `${(progress.levelXp / progress.nextLevelXp) * 100}%`,
+                  }}
+                />
+              </span>
+              <small>
+                {progress.levelXp} / {progress.nextLevelXp} XP to level{" "}
+                {progress.level + 1} · {progress.xp} XP total
+              </small>
+            </div>
+          </div>
         </div>
-        <div className="inline-actions">
-          <ProfileExport />
-          <Link className="button secondary" to="/settings">
-            Manage my data <ArrowUpRight size={16} />
+        <div className="player-actions">
+          <Link className="button primary" to={`/play/${recommended.id}`}>
+            <Play size={18} fill="currentColor" />
+            {played.size ? `Play ${recommended.name}` : "Play your first game"}
           </Link>
-        </div>
-      </div>
-      <div className="profile-top-grid">
-        <section className="panel profile-summary">
-          <div>
-            <span className="eyebrow">YOUR EXPLORATION</span>
-            <h2>
-              {played.size === 12
-                ? "The full spectrum."
-                : played.size
-                  ? "Your profile is taking shape."
-                  : "A blank canvas. All potential."}
-            </h2>
-            <p>
-              {played.size === 12
-                ? "You’ve explored every game. Repeat comparable sessions to discover your typical performance."
-                : "Explore all twelve games to build a picture across six categories. Each ring segment is a game, not a performance score."}
-            </p>
-            <Link className="text-link" to={`/play/${recommended.id}`}>
-              {played.size
-                ? `Next discovery: ${recommended.name}`
-                : "Make your first discovery"}
-              <ArrowRight size={17} />
+          <div className="inline-actions">
+            <ProfileExport />
+            <Link className="button secondary" to="/settings">
+              <Settings2 size={16} strokeWidth={2.4} />
+              Manage my data
             </Link>
           </div>
-          <CoverageWheel sessions={sessions} />
-        </section>
-        <OnlineRatingSummary />
-      </div>
+        </div>
+      </section>
       <div className="stats-row">
         {[
-          { icon: Trophy, value: valid.length, label: "Assessments completed" },
+          {
+            icon: Trophy,
+            value: valid.length,
+            label: "Games completed",
+            tone: "orange",
+          },
           {
             icon: Check,
             value: `${played.size} / 12`,
             label: "Games explored",
+            tone: "purple",
           },
           {
             icon: Flame,
             value: currentStreak(sessions),
-            label: "Current day streak",
+            label: "Day streak",
+            tone: "pink",
           },
           {
             icon: CalendarDays,
             value: activeDays(sessions),
-            label: "Days of discovery",
+            label: "Days played",
+            tone: "teal",
           },
-        ].map(({ icon: ItemIcon, value, label }) => (
-          <div className="panel stat-block" key={label}>
-            <ItemIcon size={20} />
+        ].map(({ icon: ItemIcon, value, label, tone }) => (
+          <div className={`stat-block tone-${tone}`} key={label}>
+            <span className="stat-icon">
+              <ItemIcon size={20} strokeWidth={2.6} />
+            </span>
             <strong>{value}</strong>
             <span>{label}</span>
           </div>
         ))}
       </div>
+      <div className="dashboard-grid">
+        <section className="card coverage-card">
+          <div className="section-heading">
+            <h2>Skills explored</h2>
+            <span className="muted">{played.size} of 12 games</span>
+          </div>
+          <div className="coverage-layout">
+            <CoverageWheel sessions={sessions} />
+            <ul className="skill-bars">
+              {categories.map((category) => {
+                const count = games.filter(
+                  (game) =>
+                    game.category === category.id && played.has(game.id),
+                ).length;
+                return (
+                  <li key={category.id} style={accentStyle(category.id)}>
+                    <Icon name={category.id} size={16} strokeWidth={2.6} />
+                    <span>{category.name}</span>
+                    <span className="skill-track">
+                      <span style={{ width: `${count * 50}%` }} />
+                    </span>
+                    <small>{count}/2</small>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+        <OnlineRatingSummary />
+      </div>
       <section>
         <div className="section-heading">
-          <div>
-            <span className="eyebrow">SIX DIMENSIONS OF YOU</span>
-            <h2>Your personal benchmarks</h2>
-          </div>
-          <span className="muted">
-            Best-scoring assessment sessions · by input
-          </span>
+          <h2>
+            <Medal size={22} strokeWidth={2.6} /> Personal bests
+          </h2>
+          <span className="muted">Best assessment per input</span>
         </div>
-        <div className="category-profile-grid">
-          {categories.map((category) => {
-            const anchors = games.filter(
-                (game) => game.category === category.id,
+        <div className="bests-grid">
+          {games.map((game) => {
+            const inputs = [
+              ...new Set(
+                valid
+                  .filter((session) => session.gameId === game.id)
+                  .map((session) => session.input),
               ),
-              count = anchors.filter((game) => played.has(game.id)).length;
+            ];
             return (
-              <section
-                className="panel category-profile"
-                key={category.id}
-                style={{ "--accent": category.color } as React.CSSProperties}
+              <Link
+                to={`/play/${game.id}`}
+                className={`best-tile ${inputs.length ? "" : "empty"}`}
+                key={game.id}
+                style={accentStyle(game.category)}
               >
-                <div className="category-profile-title">
-                  <Icon name={category.id} size={20} />
-                  <h3>{category.name}</h3>
-                  <span>{count} / 2</span>
-                </div>
-                <p>{category.description}</p>
-                <div className="coverage-track">
-                  <span style={{ width: `${count * 50}%` }} />
-                </div>
-                {anchors.map((game) => {
-                  const inputs = [
-                    ...new Set(
-                      valid
-                        .filter((session) => session.gameId === game.id)
-                        .map((session) => session.input),
-                    ),
-                  ];
-                  return (
-                    <div className="anchor-row" key={game.id}>
-                      <Link to={`/play/${game.id}`}>
-                        {game.name}
-                        <ArrowUpRight size={12} />
-                      </Link>
-                      {inputs.length ? (
-                        inputs.map((input) => {
-                          const best = bestSession(
-                            valid.filter(
-                              (session) =>
-                                session.gameId === game.id &&
-                                session.input === input,
-                            ),
-                          );
-                          return (
-                            <span key={input}>
-                              <strong>
-                                {best
-                                  ? formatPrimary(best)
-                                  : "No valid response"}
-                              </strong>
-                              <small>{input}</small>
-                            </span>
-                          );
-                        })
-                      ) : (
-                        <span className="muted">Unexplored</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </section>
+                <span className="best-icon">
+                  <Icon name={game.icon} size={20} strokeWidth={2.4} />
+                </span>
+                <span className="best-name">{game.name}</span>
+                {inputs.length ? (
+                  inputs.map((input) => {
+                    const best = bestSession(
+                      valid.filter(
+                        (session) =>
+                          session.gameId === game.id && session.input === input,
+                      ),
+                    );
+                    return (
+                      <span className="best-value" key={input}>
+                        <strong>
+                          {best ? formatPrimary(best) : "No valid response"}
+                        </strong>
+                        <small>{input}</small>
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="best-value muted">Not played yet</span>
+                )}
+              </Link>
             );
           })}
         </div>
       </section>
-      <section className="panel history-panel">
+      <section className="card history-panel">
         <div className="section-heading">
-          <div>
-            <span className="eyebrow">SMALL STEPS ADD UP</span>
-            <h2>Follow your progress</h2>
-          </div>
+          <h2>Progress over time</h2>
           <div className="history-filters">
             <label>
               <span className="sr-only">History game</span>
@@ -237,41 +255,46 @@ export default function Profile() {
         </div>
         <HistoryChart sessions={history} />
         <p className="small-note">
-          Protocol v1. Each point is an actual session using the same mode and
-          input. Early results show observations, not a claim of reliable
-          improvement.
+          Each point is a real session with the same mode and input.
         </p>
       </section>
       <section>
         <div className="section-heading">
-          <div>
-            <span className="eyebrow">CURIOSITY HAS ITS REWARDS</span>
-            <h2>Your milestones</h2>
-          </div>
+          <h2>
+            <Trophy size={22} strokeWidth={2.6} /> Badges
+          </h2>
           <span className="muted">
             {earned.filter((item) => item.unlocked).length} / {earned.length}{" "}
-            discovered
+            unlocked
           </span>
         </div>
         <div className="achievement-grid">
           {earned.map((item) => (
             <div
-              className={`panel achievement ${item.unlocked ? "unlocked" : ""}`}
+              className={`achievement ${item.unlocked ? "unlocked" : ""}`}
               key={item.id}
             >
-              <Icon name={item.icon} size={26} />
+              <span className="badge-medal">
+                {item.unlocked ? (
+                  <Icon name={item.icon} size={28} strokeWidth={2.4} />
+                ) : (
+                  <Lock size={24} strokeWidth={2.4} />
+                )}
+              </span>
               <h3>{item.title}</h3>
               <p>{item.description}</p>
-              <span>{item.unlocked ? "Discovered ✓" : item.progress}</span>
+              <span className="badge-progress">
+                {item.unlocked ? "Unlocked ✓" : item.progress}
+              </span>
             </div>
           ))}
         </div>
       </section>
-      <section className="panel recent-panel">
+      <section className="card recent-panel">
         <div className="section-heading">
-          <h2>Recent discoveries</h2>
+          <h2>Recent games</h2>
           <Link className="text-link" to="/games">
-            Play something new <ArrowRight size={15} />
+            Play something new <ArrowRight size={15} strokeWidth={2.6} />
           </Link>
         </div>
         {sessions.length ? (
@@ -319,8 +342,8 @@ export default function Profile() {
           </div>
         ) : (
           <div className="empty-inline">
-            <Sparkles size={25} />
-            <p>Your first discovery is waiting for you.</p>
+            <Play size={25} />
+            <p>No games yet. Your first one takes about a minute.</p>
             <Link className="button secondary" to="/games">
               Find a game <ArrowRight size={16} />
             </Link>

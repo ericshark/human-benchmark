@@ -46,9 +46,9 @@ export function CoverageWheel({
               stroke={
                 covered.has(game.id)
                   ? categories.find((item) => item.id === game.category)!.color
-                  : "var(--wheel-empty)"
+                  : "var(--track)"
               }
-              strokeWidth="18"
+              strokeWidth="20"
               strokeLinecap="round"
             />
           );
@@ -110,8 +110,8 @@ export function HistoryChart({
       >
         <defs>
           <linearGradient id={`area-${id}`} x1="0" y1="0" x2="0" y2="1">
-            <stop stopColor="var(--lime)" stopOpacity=".18" />
-            <stop offset="1" stopColor="var(--lime)" stopOpacity="0" />
+            <stop stopColor="var(--brand)" stopOpacity=".18" />
+            <stop offset="1" stopColor="var(--brand)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[50, 105, 160].map((y) => (
@@ -132,8 +132,8 @@ export function HistoryChart({
         <polyline
           points={points.join(" ")}
           fill="none"
-          stroke="var(--lime)"
-          strokeWidth="2.5"
+          stroke="var(--brand)"
+          strokeWidth="2"
           strokeLinejoin="round"
         />
         {points.map((point, index) => (
@@ -142,7 +142,7 @@ export function HistoryChart({
             cx={point.split(",")[0]}
             cy={point.split(",")[1]}
             r="4"
-            fill="var(--lime)"
+            fill="var(--brand)"
           />
         ))}
         <text x="35" y="201" className="chart-label">
@@ -207,7 +207,7 @@ export function TrialChart({ session }: { session: Session }) {
       aria-label={
         tracking
           ? "Tracking error sampled across the session. Lower bars indicate less error."
-          : "Trial measurements. Green indicates correct responses; coral indicates an error or timeout."
+          : "Trial measurements. Purple bars are correct responses; pink bars are errors or timeouts."
       }
     >
       {trials.map((trial, index) => (

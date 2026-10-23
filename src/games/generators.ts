@@ -36,14 +36,39 @@ export function rotateFigure(figure: number[], turns: number): number[] {
     cells = cells.map((cell) => (cell % 3) * 3 + (2 - Math.floor(cell / 3)));
   return cells.sort((a, b) => a - b);
 }
-const figures = [
-  [0, 3, 6, 7],
-  [0, 1, 4, 7],
-  [0, 1, 2, 3],
-  [0, 3, 4, 7],
-  [0, 1, 4, 5],
-  [0, 2, 3, 4],
-];
+function figurePool(size: number): number[][] {
+  const pool: number[][] = [];
+  for (let mask = 1; mask < 512; mask++) {
+    const cells = Array.from({ length: 9 }, (_, index) => index).filter(
+      (index) => (mask & (1 << index)) !== 0,
+    );
+    if (cells.length !== size) continue;
+    const reached = new Set([cells[0]]),
+      pending = [cells[0]];
+    while (pending.length) {
+      const cell = pending.pop()!;
+      for (const next of cells) {
+        if (
+          !reached.has(next) &&
+          Math.abs(Math.floor(cell / 3) - Math.floor(next / 3)) +
+            Math.abs((cell % 3) - (next % 3)) ===
+            1
+        ) {
+          reached.add(next);
+          pending.push(next);
+        }
+      }
+    }
+    if (
+      reached.size === size &&
+      new Set([0, 1, 2, 3].map((turn) => rotateFigure(cells, turn).join(",")))
+        .size === 4
+    )
+      pool.push(cells);
+  }
+  return pool;
+}
+const figurePools = [figurePool(4), figurePool(5)];
 export function makeQuestion(
   game: GameId,
   index: number,
@@ -133,7 +158,8 @@ export function makeQuestion(
     };
   }
   if (game === "rotation-lab") {
-    const figure = figures[index % figures.length],
+    const pool = figurePools[index < 8 ? 0 : 1];
+    const figure = pool[integer(random, 0, pool.length - 1)],
       turns = 1 + (index % 3);
     const target = rotateFigure(figure, turns);
     const alternatives = [0, 1, 2, 3].map((turn) => rotateFigure(figure, turn));

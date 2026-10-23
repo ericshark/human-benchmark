@@ -114,3 +114,14 @@ describe("reproducible challenge generation", () => {
     expect(currentStreak([])).toBe(0);
   });
 });
+
+it("varies rotation figures across seeds with explicit four- and five-cell bands", () => {
+  const seen = new Set<string>();
+  for (let seed = 0; seed < 300; seed++)
+    for (const index of [0, 8]) {
+      const question = makeQuestion("rotation-lab", index, seededRandom(seed));
+      expect(question.figure).toHaveLength(index === 0 ? 4 : 5);
+      seen.add(question.figure!.join(","));
+    }
+  expect(seen.size).toBeGreaterThan(30);
+});

@@ -12,6 +12,7 @@ export default function MemoryGame({
   mode,
   seed,
   onComplete,
+  variant = "classic",
 }: GameProps) {
   const sequence = gameId === "echo-path",
     limit = mode === "practice" ? 3 : 12;
@@ -46,6 +47,8 @@ export default function MemoryGame({
       setSelected([]);
       setLevel(current.level);
       const input = () => {
+        if (sequence && mode === "practice" && variant === "remix")
+          current.pattern.reverse();
         setLit([]);
         setPhase("input");
         current.phase = "input";
@@ -63,7 +66,12 @@ export default function MemoryGame({
         schedule(input, 500 + current.pattern.length * 650);
       } else {
         setLit(current.pattern);
-        schedule(input, 1500 + current.level * 100);
+        schedule(
+          input,
+          variant === "remix" && mode === "practice"
+            ? 650
+            : 1500 + current.level * 100,
+        );
       }
     }
     function submit(timeout = false) {
@@ -131,7 +139,7 @@ export default function MemoryGame({
       clear();
       window.removeEventListener("keydown", keyboard);
     };
-  }, [clear, limit, schedule, seed, sequence]);
+  }, [clear, limit, schedule, seed, sequence, mode, variant]);
   return (
     <>
       <div className="round-line">
@@ -153,7 +161,11 @@ export default function MemoryGame({
           ) : phase === "input" ? (
             <>
               <Hand size={19} />
-              {sequence ? "Replay the path" : "Rebuild the constellation"}
+              {sequence
+                ? variant === "remix" && mode === "practice"
+                  ? "Replay the path in reverse"
+                  : "Replay the path"
+                : "Rebuild the constellation"}
             </>
           ) : correct ? (
             <>

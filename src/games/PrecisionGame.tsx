@@ -12,6 +12,7 @@ export default function PrecisionGame({
   mode,
   seed,
   onComplete,
+  variant = "classic",
 }: GameProps) {
   const tracking = gameId === "orbit-track";
   const limit = mode === "practice" ? 5 : 30,
@@ -43,10 +44,9 @@ export default function PrecisionGame({
     const state = current.current,
       element = arena.current;
     if (!element) return;
-    const rect = element.getBoundingClientRect(),
-      random = seededRandom(seed);
-    const width = rect.width,
-      height = rect.height;
+    const random = seededRandom(seed);
+    const width = element.clientWidth,
+      height = element.clientHeight;
     function complete() {
       if (state.finished) return;
       state.finished = true;
@@ -57,7 +57,9 @@ export default function PrecisionGame({
     if (tracking) {
       const phase = random() * Math.PI * 2,
         duration = segmentDuration * 3;
-      const radius = Math.max(18, Math.min(width, height) * 0.075);
+      const radius =
+        Math.max(18, Math.min(width, height) * 0.075) *
+        (mode === "practice" && variant === "remix" ? 1.4 : 1);
       const start = performance.now();
       let last = start,
         lastSecond = -1,
@@ -129,11 +131,13 @@ export default function PrecisionGame({
       frame(tick);
     } else {
       function next() {
-        const radius = [
-          Math.max(12, Math.min(width, height) * 0.045),
-          Math.max(16, Math.min(width, height) * 0.065),
-          Math.max(22, Math.min(width, height) * 0.085),
-        ][state.trials.length % 3];
+        const radius =
+          [
+            Math.max(12, Math.min(width, height) * 0.045),
+            Math.max(16, Math.min(width, height) * 0.065),
+            Math.max(22, Math.min(width, height) * 0.085),
+          ][state.trials.length % 3] *
+          (mode === "practice" && variant === "remix" ? 0.65 : 1);
         const nextTarget = {
           x: radius + 12 + random() * (width - 2 * radius - 24),
           y: radius + 12 + random() * (height - 2 * radius - 24),
@@ -204,7 +208,17 @@ export default function PrecisionGame({
       state.finished = true;
       clear();
     };
-  }, [clear, frame, limit, schedule, seed, segmentDuration, tracking]);
+  }, [
+    clear,
+    frame,
+    limit,
+    schedule,
+    seed,
+    segmentDuration,
+    tracking,
+    mode,
+    variant,
+  ]);
   return (
     <>
       <div className="round-line">
@@ -230,25 +244,27 @@ export default function PrecisionGame({
           event.preventDefault();
           const rect = event.currentTarget.getBoundingClientRect();
           const point = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
+            x: event.clientX - rect.left - event.currentTarget.clientLeft,
+            y: event.clientY - rect.top - event.currentTarget.clientTop,
           };
           current.current.pointer = point;
           if (!tracking) hitRef.current(point.x, point.y, event.timeStamp);
           else event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
+          if (!event.isPrimary) return;
           const rect = event.currentTarget.getBoundingClientRect();
           current.current.pointer = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
+            x: event.clientX - rect.left - event.currentTarget.clientLeft,
+            y: event.clientY - rect.top - event.currentTarget.clientTop,
           };
         }}
         onPointerLeave={() => {
           current.current.pointer = null;
         }}
         onPointerUp={(event) => {
-          if (event.pointerType === "touch") current.current.pointer = null;
+          if (event.isPrimary && event.pointerType === "touch")
+            current.current.pointer = null;
         }}
         onPointerCancel={() => {
           current.current.pointer = null;

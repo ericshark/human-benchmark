@@ -12,8 +12,10 @@ import {
 import { useApp } from "../app/AppContext";
 import type { InputClass } from "../domain/types";
 import { OnlineAccount } from "../components/OnlineAccount";
+import { useOnline } from "../app/OnlineContext";
 
 export default function Settings() {
+  const online = useOnline();
   const {
     settings,
     updateSettings,
@@ -247,8 +249,13 @@ export default function Settings() {
         </div>
         <div className="privacy-state">
           <ShieldCheck size={23} />
-          <strong>Local-only profile</strong>
-          <span>Population contribution: off</span>
+          <strong>
+            {online.user ? "Online profile is optional" : "Local-only profile"}
+          </strong>
+          <span>
+            Population contribution:{" "}
+            {online.profile?.statistics_consent ? "on" : "off"}
+          </span>
           <span>Public profile: off</span>
         </div>
       </section>

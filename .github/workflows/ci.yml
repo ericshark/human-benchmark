@@ -1,0 +1,35 @@
+name: HumanRank checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.6
+      - run: deno fmt --check supabase/functions
+      - run: deno check --config supabase/functions/deno.json supabase/functions/humanrank/index.ts supabase/functions/aggregate/index.ts
+      - run: npm run check
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+        env:
+          PW_HEADLESS: "true"
+      - run: npm run test:production
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-evidence
+          path: test-results/
+          retention-days: 7

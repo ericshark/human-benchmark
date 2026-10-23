@@ -38,30 +38,75 @@ export const trialSchema = z.object({
 });
 export type Trial = z.infer<typeof trialSchema>;
 
-export const sessionSchema = z.object({
-  id: z.string().uuid(),
-  gameId: z.enum(gameIds),
-  version: z.literal(1),
-  scoringVersion: z.literal(1),
-  mode: z.enum(["assessment", "practice", "daily"]),
-  seed: z.number().int().min(0).max(4294967295),
-  startedAt: z.string().datetime(),
-  completedAt: z.string().datetime(),
-  input: z.enum(["mouse", "trackpad", "touch", "keyboard"]),
-  viewport: z.object({
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-  }),
-  arena: z
-    .object({ width: z.number().positive(), height: z.number().positive() })
-    .optional(),
-  trials: z.array(trialSchema).min(1).max(10000),
-  flags: z.array(z.string().max(120)).max(30),
-  dailyId: z.string().max(30).optional(),
-  note: z.string().max(300).optional(),
-  assessmentToken: z.string().uuid().optional(),
-  onlineOwner: z.string().uuid().optional(),
+const metricSchema = z.object({
+  label: z.string().max(80),
+  value: z.number().finite(),
+  unit: z.string().max(20),
+  digits: z.number().int().min(0).max(4).optional(),
 });
+const archivedResultSchema = z.object({
+  primary: metricSchema,
+  rankingValue: z.number().finite(),
+  higherIsBetter: z.boolean(),
+  metrics: z.array(metricSchema).max(20),
+  accuracy: z.number().min(0).max(100),
+  correct: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export const sessionSchema = z
+  .object({
+    id: z.string().uuid(),
+    gameId: z.enum(gameIds),
+    version: z.literal(1),
+    scoringVersion: z.literal(1),
+    mode: z.enum(["assessment", "practice", "daily"]),
+    seed: z.number().int().min(0).max(4294967295),
+    startedAt: z.string().datetime(),
+    completedAt: z.string().datetime(),
+    input: z.enum(["mouse", "trackpad", "touch", "keyboard"]),
+    viewport: z.object({
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    }),
+    arena: z
+      .object({ width: z.number().positive(), height: z.number().positive() })
+      .optional(),
+    trials: z.array(trialSchema).max(10000),
+    flags: z.array(z.string().max(120)).max(30),
+    dailyId: z.string().max(30).optional(),
+    note: z.string().max(300).optional(),
+    assessmentToken: z.string().uuid().optional(),
+    onlineOwner: z.string().uuid().optional(),
+    recordingExpired: z.literal(true).optional(),
+    archivedResult: archivedResultSchema.optional(),
+  })
+  .superRefine((session, context) => {
+    if (Date.parse(session.completedAt) < Date.parse(session.startedAt))
+      context.addIssue({
+        code: "custom",
+        message: "Session dates are reversed.",
+      });
+    if (
+      session.trials.some(
+        (trial, index) =>
+          trial.index !== index || trial.respondedAt < trial.stimulusAt,
+      )
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Trial sequence or timestamps are inconsistent.",
+      });
+    if (
+      !session.trials.length &&
+      !(session.recordingExpired && session.archivedResult)
+    )
+      context.addIssue({
+        code: "custom",
+        message:
+          "A session requires trial data or an explicitly archived summary.",
+      });
+  });
 export type Session = z.infer<typeof sessionSchema>;
 
 export interface Metric {

@@ -1,0 +1,29 @@
+project_id = "humanrank"
+[api]
+port = 54322
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+[db]
+port = 54323
+shadow_port = 54321
+major_version = 17
+[studio]
+port = 54324
+[inbucket]
+port = 54325
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5174"
+additional_redirect_urls = ["http://127.0.0.1:5174/auth/callback"]
+enable_signup = true
+enable_anonymous_sign_ins = false
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+[functions.humanrank]
+verify_jwt = false
+# The function validates Bearer tokens through auth.getUser on every private action.
+[functions.aggregate]
+verify_jwt = false

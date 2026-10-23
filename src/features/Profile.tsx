@@ -6,16 +6,17 @@ import {
   CalendarDays,
   Check,
   Flame,
-  LockKeyhole,
   Sparkles,
   Trophy,
 } from "lucide-react";
 import { useApp } from "../app/AppContext";
 import { categories, gameById, games } from "../games/registry";
-import { bestSession, formatMetric, scoreSession } from "../domain/scoring";
+import { bestSession, formatPrimary } from "../domain/scoring";
 import type { GameId, InputClass, Mode } from "../domain/types";
 import { CoverageWheel, HistoryChart } from "../components/Charts";
 import { Icon } from "../components/Icon";
+import { ProfileExport } from "../components/ProfileExport";
+import { OnlineRatingSummary } from "../components/OnlineRatings";
 import { achievements, activeDays, currentStreak } from "./progress";
 
 export default function Profile() {
@@ -54,9 +55,12 @@ export default function Profile() {
             {settings.name}, every challenge adds another piece to the picture.
           </p>
         </div>
-        <Link className="button secondary" to="/settings">
-          Manage my data <ArrowUpRight size={16} />
-        </Link>
+        <div className="inline-actions">
+          <ProfileExport />
+          <Link className="button secondary" to="/settings">
+            Manage my data <ArrowUpRight size={16} />
+          </Link>
+        </div>
       </div>
       <div className="profile-top-grid">
         <section className="panel profile-summary">
@@ -83,28 +87,7 @@ export default function Profile() {
           </div>
           <CoverageWheel sessions={sessions} />
         </section>
-        <section className="panel rank-preview">
-          <div className="rank-icon">
-            <Sparkles size={25} />
-          </div>
-          <span className="eyebrow">HUMANRANK & PROFILE RARITY</span>
-          <h2>
-            Good data
-            <br />
-            comes first.
-          </h2>
-          <p>
-            Your personal measurements are ready as you play. Population
-            rankings need real, comparable player data.
-          </p>
-          <span className="availability-tag">
-            <LockKeyhole size={13} />
-            Awaiting qualifying cohorts
-          </span>
-          <Link to="/methodology" className="text-link">
-            See what’s needed <ArrowUpRight size={14} />
-          </Link>
-        </section>
+        <OnlineRatingSummary />
       </div>
       <div className="stats-row">
         {[
@@ -138,7 +121,9 @@ export default function Profile() {
             <span className="eyebrow">SIX DIMENSIONS OF YOU</span>
             <h2>Your personal benchmarks</h2>
           </div>
-          <span className="muted">Assessment records · grouped by input</span>
+          <span className="muted">
+            Best-scoring assessment sessions · by input
+          </span>
         </div>
         <div className="category-profile-grid">
           {categories.map((category) => {
@@ -187,8 +172,8 @@ export default function Profile() {
                           return (
                             <span key={input}>
                               <strong>
-                                {best && scoreSession(best).correct
-                                  ? formatMetric(scoreSession(best).primary)
+                                {best
+                                  ? formatPrimary(best)
                                   : "No valid response"}
                               </strong>
                               <small>{input}</small>
@@ -312,7 +297,7 @@ export default function Profile() {
                         <small className="error-text"> · review</small>
                       )}
                     </td>
-                    <td>{formatMetric(scoreSession(session).primary)}</td>
+                    <td>{formatPrimary(session)}</td>
                     <td>
                       {session.mode} · {session.input}
                     </td>

@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { useLayoutEffect, useRef } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useApp } from "../app/AppContext";
 import { categories, games } from "../games/registry";
@@ -8,6 +9,10 @@ import { Icon } from "../components/Icon";
 export default function Catalog() {
   const { sessions } = useApp();
   const [params, setParams] = useSearchParams();
+  const pendingParams = useRef(params);
+  useLayoutEffect(() => {
+    pendingParams.current = params;
+  }, [params]);
   const category = params.get("category") ?? "all",
     query = params.get("q") ?? "";
   const filtered = games.filter(
@@ -18,9 +23,11 @@ export default function Catalog() {
         .includes(query.toLowerCase()),
   );
   const update = (key: string, value: string) => {
-    const next = new URLSearchParams(params);
+    // Merge rapid edits before the router has committed its previous navigation.
+    const next = new URLSearchParams(pendingParams.current);
     if (value && value !== "all") next.set(key, value);
     else next.delete(key);
+    pendingParams.current = next;
     setParams(next, { replace: true });
   };
   return (
@@ -76,7 +83,13 @@ export default function Catalog() {
           <Search size={35} />
           <h2>No games found.</h2>
           <p>Try a different search or explore all six categories.</p>
-          <button className="button secondary" onClick={() => setParams({})}>
+          <button
+            className="button secondary"
+            onClick={() => {
+              pendingParams.current = new URLSearchParams();
+              setParams({});
+            }}
+          >
             Show all games
           </button>
         </div>

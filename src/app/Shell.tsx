@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useApp } from "./AppContext";
+import { useOnline } from "./OnlineContext";
 
 const navigation = [
   { path: "/", label: "Discover", icon: Compass },
@@ -20,6 +21,7 @@ const navigation = [
 ];
 export function Shell() {
   const { settings, storageError } = useApp();
+  const online = useOnline();
   const { pathname } = useLocation();
   const title = pathname.startsWith("/play")
     ? "The arena"
@@ -84,7 +86,9 @@ export function Shell() {
           </NavLink>
           <div className="sidebar-footnote">
             <span className="status-dot" />
-            Local play. Your data stays here.
+            {online.profile?.sync_enabled
+              ? "Account sync enabled."
+              : "Local play. Your data stays here."}
           </div>
         </div>
       </aside>
@@ -96,7 +100,9 @@ export function Shell() {
             <strong>{title}</strong>
           </div>
           <NavLink className="profile-chip" to="/profile">
-            <span className="local-tag">LOCAL EXPLORER</span>
+            <span className="local-tag">
+              {online.user ? "ONLINE EXPLORER" : "LOCAL EXPLORER"}
+            </span>
             <span className="avatar">
               {settings.name.slice(0, 1).toUpperCase()}
             </span>

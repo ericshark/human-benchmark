@@ -1,4 +1,33 @@
+import { validateSession } from "../src/server/validation";
 import { test, expect, type Page } from "@playwright/test";
+
+async function verifyRecordedContract(page: Page) {
+  const raw = await page.evaluate(async () => {
+    return new Promise<unknown>((resolve, reject) => {
+      const request = indexedDB.open("humanrank");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const read = db
+          .transaction("sessions", "readonly")
+          .objectStore("sessions")
+          .getAll();
+        read.onsuccess = () => {
+          const values = read.result.sort((a, b) =>
+            b.completedAt.localeCompare(a.completedAt),
+          );
+          resolve(values[0]);
+          db.close();
+        };
+        read.onerror = () => {
+          reject(read.error);
+          db.close();
+        };
+      };
+    });
+  });
+  expect(() => validateSession(raw, true)).not.toThrow();
+}
 
 async function start(page: Page, game: string, practice = false) {
   await page.goto(`/play/${game}`);
@@ -25,6 +54,7 @@ async function finishSignal(page: Page, practice = false) {
 test("discovery, catalog filters, methodology and responsive navigation", async ({
   page,
 }) => {
+  test.setTimeout(120000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
@@ -81,6 +111,7 @@ test("Signal completes, persists on reload, updates profile, exports and restore
   const recorded = await page.locator(".result-number").innerText();
   expect(parseFloat(recorded)).toBeGreaterThanOrEqual(150);
   expect(parseFloat(recorded)).toBeLessThan(450);
+  await verifyRecordedContract(page);
   const url = page.url();
   await page.reload();
   await expect(page).toHaveURL(url);
@@ -178,6 +209,7 @@ for (const game of [
       "Local assessment",
     );
     await expect(page.locator(".result-number")).not.toBeEmpty();
+    await verifyRecordedContract(page);
   });
 }
 
@@ -220,6 +252,7 @@ test("Grid Recall accepts remembered cells and saves a full staircase", async ({
   await expect(
     page.locator(".metric-card").filter({ hasText: "Recall accuracy" }),
   ).toContainText("100%");
+  await verifyRecordedContract(page);
 });
 
 test("Echo Path is playable and completes all rounds, including timeouts", async ({
@@ -230,6 +263,7 @@ test("Echo Path is playable and completes all rounds, including timeouts", async
   await page.clock.runFor(240000);
   await expect(page).toHaveURL(/\/results\//);
   await expect(page.locator(".result-main")).toBeVisible();
+  await verifyRecordedContract(page);
 });
 
 test("Target Burst acquires visible targets with pointer input", async ({
@@ -251,6 +285,7 @@ test("Target Burst acquires visible targets with pointer input", async ({
   await expect(
     page.locator(".metric-card").filter({ hasText: "Hit rate" }),
   ).toContainText("100%");
+  await verifyRecordedContract(page);
 });
 
 test("Orbit Track completes a timed recording and scores missing input as off target", async ({
@@ -264,6 +299,7 @@ test("Orbit Track completes a timed recording and scores missing input as off ta
   await expect(
     page.locator(".metric-card").filter({ hasText: "Tracked time" }),
   ).toContainText("45.0 s");
+  await verifyRecordedContract(page);
 });
 
 test("settings persist, themes work, invalid imports preserve history", async ({
@@ -278,15 +314,167 @@ test("settings persist, themes work, invalid imports preserve history", async ({
   await expect(page.getByLabel("Explorer name")).toHaveValue("Ada");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
-  await page
-    .getByLabel("Import a backup")
-    .setInputFiles({
-      name: "bad.json",
-      mimeType: "application/json",
-      buffer: Buffer.from('{"format":"other"}'),
-    });
+  await page.getByLabel("Import a backup").setInputFiles({
+    name: "bad.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"format":"other"}'),
+  });
   await expect(page.getByRole("alert")).toContainText(
     "not a supported HumanRank backup",
   );
   await expect(page.getByLabel("Explorer name")).toHaveValue("Ada");
+});
+
+test("introductory circuit survives navigation and produces a six-category initial profile", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto("/challenges?circuit=intro");
+  await page
+    .getByRole("link", { name: "Discover my strengths", exact: true })
+    .click();
+  const durations = [70000, 250000, 120000, 210000, 85000, 46000];
+  for (let index = 0; index < 6; index++) {
+    await page
+      .getByRole("button", { name: "Start assessment", exact: true })
+      .click();
+    await page.locator(".round-line").waitFor();
+    await page.clock.runFor(durations[index]);
+    await expect(page).toHaveURL(/\/results\//);
+    if (index < 5) await page.getByRole("link", { name: /^Next:/ }).click();
+  }
+  await page.getByRole("link", { name: "Circuit complete" }).click();
+  await expect(
+    page.getByRole("link", { name: "See my initial profile" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("link", { name: "See my initial profile" }),
+  ).toBeVisible();
+  await page.goto("/profile");
+  await expect(page.locator(".stat-block").nth(1)).toContainText("6 / 12");
+});
+
+test("touch target acquisition records touch input and fits a narrow result screen", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+  try {
+    const page = await context.newPage();
+    await page.clock.install();
+    await start(page, "target-burst");
+    for (let index = 0; index < 30; index++) {
+      await page.clock.runFor(200);
+      const target = await page.locator(".precision-target").boundingBox();
+      await page.touchscreen.tap(
+        target!.x + target!.width / 2,
+        target!.y + target!.height / 2,
+      );
+      await page.clock.runFor(200);
+    }
+    await expect(page).toHaveURL(/\/results\//);
+    await expect(page.locator(".result-main")).toContainText("touch");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page
+      .getByLabel("Private session note")
+      .fill("Trackpad practice after lunch");
+    await page.getByRole("button", { name: "Save note", exact: true }).click();
+    await expect(page.getByText("Note saved to this browser.")).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel("Private session note")).toHaveValue(
+      "Trackpad practice after lunch",
+    );
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Save result card" }).click();
+    expect((await download).suggestedFilename()).toMatch(/\.png$/);
+  } finally {
+    await context.close();
+  }
+});
+
+test("a storage failure is visible and does not prevent an in-memory result", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "indexedDB", {
+      value: {
+        open: () => {
+          throw new Error("Storage unavailable for test");
+        },
+      },
+    });
+  });
+  await page.clock.install();
+  await start(page, "signal");
+  await finishSignal(page);
+  await expect(page).toHaveURL(/\/results\//);
+  await expect(page.getByRole("alert")).toContainText("could not be saved");
+  await expect(
+    page.getByText("Available for this visit · export to keep"),
+  ).toBeVisible();
+});
+
+test("quick-fire practice is playable and relaxed practice gives time to think", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto("/play/signal");
+  await page.getByLabel("Practice variation").selectOption("remix");
+  await page.getByRole("button", { name: "Try a practice round" }).click();
+  await finishSignal(page, true);
+  await expect(
+    page.getByRole("heading", { name: "You’ve got the idea." }),
+  ).toBeVisible();
+  await page.goto("/play/crossroads");
+  await page.getByLabel("Practice variation").selectOption("remix");
+  await page.getByRole("button", { name: "Try a practice round" }).click();
+  await page.locator(".answer-button").first().waitFor();
+  await page.clock.runFor(6000);
+  await expect(page.locator(".answer-button").first()).toBeEnabled();
+  await expect(page.locator(".round-line")).toContainText("QUESTION 1 / 4");
+});
+
+test("reverse-path practice accepts the observed sequence in reverse order", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto("/play/echo-path");
+  await page.getByLabel("Practice variation").selectOption("remix");
+  await page.getByRole("button", { name: "Try a practice round" }).click();
+  await page.locator(".round-line").waitFor();
+  for (let round = 0; round < 3; round++) {
+    const level = parseInt(
+        await page.locator(".round-line>span").last().innerText(),
+        10,
+      ),
+      sequence: string[] = [];
+    while (!(await page.locator(".memory-grid button.lit").count()))
+      await page.clock.runFor(50);
+    for (let step = 0; step < level; step++) {
+      sequence.push(
+        (await page
+          .locator(".memory-grid button.lit")
+          .getAttribute("aria-label"))!,
+      );
+      if (step < level - 1) await page.clock.runFor(650);
+    }
+    await page.clock.runFor(800);
+    await expect(
+      page.getByText("Replay the path in reverse", { exact: true }),
+    ).toBeVisible();
+    for (const cell of sequence.reverse())
+      await page.getByRole("button", { name: cell, exact: true }).click();
+    await expect(page.getByText("Exactly right")).toBeVisible();
+    await page.clock.runFor(1200);
+  }
+  await expect(
+    page.getByRole("heading", { name: "You’ve got the idea." }),
+  ).toBeVisible();
 });

@@ -65,6 +65,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
   const navigate = useNavigate(),
     [params] = useSearchParams();
   const daily = params.get("circuit") === "daily";
+  const day = online.challengeDay ?? localDay();
   const [stage, setStage] = useState<
     | "instructions"
     | "practice"
@@ -76,6 +77,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
   const [seed, setSeed] = useState(newSeed),
     [practiceTrials, setPracticeTrials] = useState<Trial[]>([]);
   const [interruption, setInterruption] = useState("");
+  const [variant, setVariant] = useState<"classic" | "remix">("classic");
   const [onlineBusy, setOnlineBusy] = useState(false),
     [onlineError, setOnlineError] = useState("");
   const [assessmentInput, setAssessmentInput] = useState(
@@ -86,6 +88,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
         : settings.input,
   );
   const token = useRef<AssessmentToken | null>(null);
+  const startedDay = useRef(day);
   const started = useRef(""),
     input = useRef(settings.input),
     complete = useRef(false);
@@ -161,6 +164,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
   }, [active, interrupt]);
   function start(practice = false, issuedToken?: AssessmentToken) {
     token.current = issuedToken ?? null;
+    startedDay.current = day;
     complete.current = false;
     started.current = new Date().toISOString();
     input.current = issuedToken?.input_class ?? settings.input;
@@ -169,9 +173,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
     audio.current = settings.sound ? prepareCompletionSound() : null;
     setSeed(
       issuedToken?.seed ??
-        (daily && !practice
-          ? hashSeed(`${localDay()}|${gameId}|v1`)
-          : newSeed()),
+        (daily && !practice ? hashSeed(`${day}|${gameId}|v1`) : newSeed()),
     );
     setStage(practice ? "practice" : "playing");
   }
@@ -207,15 +209,17 @@ function GameSession({ gameId }: { gameId: GameId }) {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       trials,
       flags,
-      ...(daily ? { dailyId: localDay() } : {}),
-      ...(token.current && online.user
-        ? { assessmentToken: token.current.id, onlineOwner: online.user.id }
+      ...(daily ? { dailyId: startedDay.current } : {}),
+      ...(token.current?.ownerId
+        ? {
+            assessmentToken: token.current.id,
+            onlineOwner: token.current.ownerId,
+          }
         : {}),
     };
-    const arena = document
-      .querySelector(".precision-arena")
-      ?.getBoundingClientRect();
-    if (arena) session.arena = { width: arena.width, height: arena.height };
+    const arena = document.querySelector<HTMLElement>(".precision-arena");
+    if (arena)
+      session.arena = { width: arena.clientWidth, height: arena.clientHeight };
     try {
       await saveSession(session);
       if (token.current)
@@ -285,6 +289,33 @@ function GameSession({ gameId }: { gameId: GameId }) {
                 <li key={instruction}>{instruction}</li>
               ))}
             </ol>
+            {!["math-sprint", "symbol-match"].includes(gameId) && (
+              <label className="practice-variation">
+                Practice variation
+                <select
+                  aria-label="Practice variation"
+                  value={variant}
+                  onChange={(event) =>
+                    setVariant(event.target.value as "classic" | "remix")
+                  }
+                >
+                  <option value="classic">Classic practice</option>
+                  <option value="remix">
+                    {gameId === "signal"
+                      ? "Quick-fire"
+                      : gameId === "echo-path"
+                        ? "Reverse path"
+                        : gameId === "grid-recall"
+                          ? "Flash recall"
+                          : gameId === "target-burst"
+                            ? "Small targets"
+                            : gameId === "orbit-track"
+                              ? "Room to roam"
+                              : "Relaxed pace · 60 seconds per question"}
+                  </option>
+                </select>
+              </label>
+            )}
             <div className="instruction-actions">
               <button className="button primary" onClick={() => start()}>
                 <Play size={16} fill="currentColor" />
@@ -319,7 +350,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
                       "mouse",
                       "trackpad",
                       "touch",
-                      ...(game.keys ? ["keyboard"] : []),
+                      ...(game.category !== "precision" ? ["keyboard"] : []),
                     ].map((value) => (
                       <option key={value}>{value}</option>
                     ))}
@@ -359,6 +390,11 @@ function GameSession({ gameId }: { gameId: GameId }) {
       {active && (
         <div
           className="game-stage panel"
+          onPointerCancel={() =>
+            interrupt(
+              "The touch gesture was interrupted. Start a fresh session when you’re ready.",
+            )
+          }
           onPointerDownCapture={(event) => {
             input.current =
               event.pointerType === "touch"
@@ -383,6 +419,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
             <Engine
               key={`${seed}-${stage}`}
               gameId={gameId}
+              variant={stage === "practice" ? variant : "classic"}
               seed={seed}
               mode={
                 stage === "practice"

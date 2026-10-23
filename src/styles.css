@@ -4431,3 +4431,123 @@ td {
 .rated-start select {
   font-size: 11px;
 }
+
+.session-notes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  padding: 26px;
+  margin-top: 22px;
+}
+.session-notes h2,
+.share-panel h2 {
+  font-size: 25px;
+  margin: 12px 0;
+}
+.session-notes p,
+.share-panel p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.session-notes textarea {
+  display: block;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  min-height: 85px;
+  resize: vertical;
+  padding: 12px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.session-notes .button {
+  font-size: 10px;
+}
+.share-panel {
+  padding: 26px;
+  margin-top: 22px;
+}
+.share-panel > p {
+  margin-bottom: 18px;
+}
+.category-rating-bars {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.category-rating-bars > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+}
+.category-rating-bars span {
+  width: 65px;
+  color: var(--muted);
+}
+.category-rating-bars progress {
+  height: 5px;
+  flex: 1;
+  accent-color: var(--lime);
+  min-width: 0;
+}
+.category-rating-bars strong {
+  font-size: 9px;
+  font-weight: 500;
+}
+.index-denominator {
+  font-size: 18px;
+  color: var(--muted);
+}
+@media (max-width: 760px) {
+  .session-notes {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .rank-preview .category-rating-bars {
+    grid-column: 1/3;
+  }
+  .rank-preview > .small-note {
+    grid-column: 1/3;
+  }
+}
+/* Assessment surfaces remain consistent when the surrounding appearance changes. */
+.game-stage {
+  --panel: #191d18;
+  --bg: #111410;
+  --raised: #22271f;
+  --border: #343c2d;
+  --text: #eef0e8;
+  --muted: #a0aa96;
+  color: var(--text);
+  background: var(--panel);
+  color-scheme: dark;
+}
+.practice-variation {
+  display: grid;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--muted);
+  margin: 18px 0;
+}
+.practice-variation select {
+  font-size: 11px;
+  min-height: 38px;
+  padding: 9px 11px;
+}
+.result-number,
+.metric-card strong,
+.stat-block strong,
+.preview-counts strong {
+  font-variant-numeric: tabular-nums;
+}
+:root[data-theme="light"] .card-category,
+:root[data-theme="light"] .category-eyebrow,
+:root[data-theme="light"] .category-profile-title > svg,
+:root[data-theme="light"] .result-number {
+  color: color-mix(in srgb, var(--accent, #c4f76a) 45%, #17210e);
+}

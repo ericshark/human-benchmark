@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, Clock3 } from "lucide-react";
 import { getCategory } from "../games/registry";
 import type { GameDefinition, Session } from "../domain/types";
-import { bestSession, formatMetric, scoreSession } from "../domain/scoring";
+import { bestSession, formatPrimary } from "../domain/scoring";
 import { Icon } from "./Icon";
 
 export function GameArt({ game }: { game: GameDefinition }) {
@@ -75,9 +75,7 @@ export function GameCard({
             {game.duration}
           </span>
           <span>
-            {best
-              ? `Best ${formatMetric(scoreSession(best).primary)}`
-              : "Discover your baseline"}
+            {best ? `Best ${formatPrimary(best)}` : "Discover your baseline"}
             <span className="card-play">↗</span>
           </span>
         </div>

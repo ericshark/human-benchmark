@@ -1,6 +1,10 @@
 import { useId } from "react";
 import type { Session } from "../domain/types";
-import { formatMetric, scoreSession } from "../domain/scoring";
+import {
+  formatMetric,
+  scoreSession,
+  hasPrimaryMeasurement,
+} from "../domain/scoring";
 import { categories, games } from "../games/registry";
 
 export function CoverageWheel({
@@ -77,7 +81,8 @@ export function HistoryChart({
   label?: string;
 }) {
   const id = useId().replace(/:/g, "");
-  const data = [...sessions]
+  const data = sessions
+    .filter(hasPrimaryMeasurement)
     .reverse()
     .slice(-20)
     .map((session) => ({ session, metric: scoreSession(session).primary }));
@@ -170,6 +175,13 @@ export function HistoryChart({
   );
 }
 export function TrialChart({ session }: { session: Session }) {
+  if (session.recordingExpired)
+    return (
+      <p className="notice">
+        Detailed cloud recordings expire after 90 days. Your score summary is
+        preserved.
+      </p>
+    );
   const tracking = session.gameId === "orbit-track";
   // Tracking samples can number in the thousands; summarize contiguous time windows for display.
   const trials = tracking

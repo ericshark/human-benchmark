@@ -15,7 +15,8 @@ The launcher tries **http://127.0.0.1:5174**, then increments if occupied. Previ
 
 ```sh
 npm run check     # types, lint, domain/database tests, production build
-npm run test:e2e  # headless Chromium, Firefox, and WebKit; start the dev server first
+npm run test:e2e  # headless browsers; starts/stops its own test server
+npm run build && npm run test:production:full # full headless suite on frozen dist
 npm run preview  # local preview of dist; not a production server
 ```
 
@@ -50,3 +51,7 @@ With no `.env.local`, no authentication or game-data service is contacted. Fonts
 - `src/server` and `supabase`: optional authenticated data services and PostgreSQL policies.
 
 The approved [implementation plan](docs/implementation-plan.md) defines all three phases. [Measurement research](docs/measurement-research.md) records primary sources and statistical limitations. Public hosting and production data collection require configuration and launch validation; this repository is not automatically deployed.
+
+Online deployment instructions and current verification limits are in [backend setup](docs/backend-setup.md) and [operations](docs/operations.md).
+
+The [implementation status](docs/implementation-status.md) records completed work, verification evidence, remaining launch gates, and handoff commands. `npm run test:production` is a two-scenario Chromium smoke check; `test:production:full` covers every configured browser and requires a fresh production build first.

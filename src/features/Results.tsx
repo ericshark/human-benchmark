@@ -16,15 +16,19 @@ import {
   formatMetric,
   median,
   scoreSession,
+  hasPrimaryMeasurement,
+  formatPrimary,
 } from "../domain/scoring";
 import { HistoryChart, TrialChart } from "../components/Charts";
 import { Icon } from "../components/Icon";
 import { dailyGames } from "./progress";
+import { PopulationComparison } from "../components/OnlineRatings";
+import { ResultExtras } from "../components/ResultExtras";
 
 export default function Results() {
   const { sessionId } = useParams(),
     [params] = useSearchParams();
-  const { sessions, loading, introProgress } = useApp();
+  const { sessions, loading, introProgress, storageError } = useApp();
   const session = sessions.find((item) => item.id === sessionId);
   if (loading)
     return <div className="page loading-state">Opening your result…</div>;
@@ -42,6 +46,7 @@ export default function Results() {
     category = getCategory(game.category),
     result = scoreSession(session);
   const history = sessions.filter((item) => comparable(item, session));
+  const measuredHistory = history.filter(hasPrimaryMeasurement);
   const best = bestSession(history),
     previous = history.find((item) => item.id !== session.id);
   const record = best?.id === session.id && history.length > 1;
@@ -175,7 +180,9 @@ export default function Results() {
           <div className="result-badges">
             <span>
               <ShieldCheck size={14} />
-              Saved to this browser
+              {storageError
+                ? "Available for this visit · export to keep"
+                : "Saved to this browser"}
             </span>
             {record && (
               <span className="record-badge">
@@ -187,9 +194,9 @@ export default function Results() {
         </div>
         <div className="result-comparisons">
           <div>
-            <span>Personal best · same setup</span>
+            <span>Best-scoring session · same setup</span>
             <strong>
-              {best && scoreSession(best).correct
+              {best && hasPrimaryMeasurement(best)
                 ? formatMetric(scoreSession(best).primary)
                 : "Not established"}
             </strong>
@@ -197,11 +204,11 @@ export default function Results() {
           <div>
             <span>Typical recent form</span>
             <strong>
-              {history.length >= 2
+              {measuredHistory.length >= 2
                 ? formatMetric({
                     ...result.primary,
                     value: median(
-                      history
+                      measuredHistory
                         .slice(0, 5)
                         .map((item) => scoreSession(item).primary.value),
                     ),
@@ -212,9 +219,7 @@ export default function Results() {
           <div>
             <span>Previous attempt</span>
             <strong>
-              {previous
-                ? formatMetric(scoreSession(previous).primary)
-                : "This is your first. Nice."}
+              {previous ? formatPrimary(previous) : "This is your first. Nice."}
             </strong>
           </div>
         </div>
@@ -223,10 +228,22 @@ export default function Results() {
         {result.metrics.map((metric) => (
           <div className="metric-card panel" key={metric.label}>
             <span>{metric.label}</span>
-            <strong>{formatMetric(metric)}</strong>
+            <strong>
+              {metric.label.includes("Consistency") && result.correct < 2
+                ? "More trials needed"
+                : !result.correct &&
+                    metric.unit === "ms" &&
+                    !metric.label.includes("Penalized")
+                  ? "—"
+                  : formatMetric(metric)}
+            </strong>
           </div>
         ))}
       </div>
+      <p className="small-note">
+        A personal record is your best full session under the published scoring
+        rule, including error penalties.
+      </p>
       <div className="result-actions">
         <Link
           className="button primary"
@@ -315,15 +332,10 @@ export default function Results() {
       <div className="notice">
         <ShieldCheck size={21} />
         <div>
-          <strong>Personal insight, grounded in your play.</strong>
-          <p>
-            Population comparisons are not available yet. HumanRank will only
-            show percentiles and profile rarity when enough comparable,
-            qualifying player data exists.{" "}
-            <Link to="/methodology">How scoring works ↗</Link>
-          </p>
+          <PopulationComparison session={session} />
         </div>
       </div>
+      <ResultExtras key={session.id} session={session} />
       <Link className="next-discovery panel" to="/profile">
         <Sparkles size={24} />
         <div>

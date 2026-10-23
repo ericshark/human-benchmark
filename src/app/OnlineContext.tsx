@@ -14,6 +14,7 @@ import {
   onlineClient,
   onlineConfigured,
   onlineRequest,
+  OnlineRequestError,
 } from "../services/online";
 import {
   sessionSchema,
@@ -41,9 +42,11 @@ export interface AssessmentToken {
   issued_at: string;
   expires_at: string;
   input_class: InputClass;
+  ownerId?: string;
 }
 interface OnlineState {
   configured: boolean;
+  challengeDay: string | null;
   user: User | null;
   profile: OnlineProfile | null;
   shares: Share[];
@@ -72,15 +75,27 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [challengeDay, setChallengeDay] = useState<string | null>(null);
+  const serverOffset = useRef(0);
   const current = useRef({ user, profile, sessions });
   current.current = { user, profile, sessions };
   const initialIds = useRef<Set<string> | null>(null),
-    flushing = useRef(false);
+    flushing = useRef(false),
+    flushRequested = useRef(false);
   const refresh = useCallback(async () => {
+    const owner = current.current.user?.id;
+    if (!owner) return;
     const result = await onlineRequest<{
       profile: OnlineProfile | null;
       shares: Share[];
-    }>({ action: "profile" });
+      serverTime: string;
+    }>({ action: "profile" }, owner);
+    if (current.current.user?.id !== owner) return;
+    current.current.profile = result.profile;
+    serverOffset.current = Date.parse(result.serverTime) - Date.now();
+    setChallengeDay(
+      new Date(Date.now() + serverOffset.current).toISOString().slice(0, 10),
+    );
     setProfile(result.profile);
     setShares(result.shares);
   }, []);
@@ -88,16 +103,28 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     if (!onlineConfigured) return;
     let alive = true;
     let unsubscribe: (() => void) | undefined;
+    const acceptUser = (next: User | null) => {
+      if (current.current.user?.id !== next?.id) {
+        // Consent belongs to an account; never reuse it while another profile loads.
+        current.current.profile = null;
+        setProfile(null);
+        setShares([]);
+        setStatus("");
+        setError("");
+      }
+      current.current.user = next;
+      setUser(next);
+    };
     void onlineClient()
       .then(async (client) => {
         const { data } = await client.auth.getSession();
         if (!alive) return;
-        setUser(data.session?.user ?? null);
+        acceptUser(data.session?.user ?? null);
         if (data.session)
           void refresh().catch((cause) => setError(String(cause.message)));
         const listener = client.auth.onAuthStateChange((_event, session) => {
           if (!alive) return;
-          setUser(session?.user ?? null);
+          acceptUser(session?.user ?? null);
           if (session)
             setTimeout(() => {
               void refresh().catch((cause) => setError(String(cause.message)));
@@ -115,9 +142,14 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
       unsubscribe?.();
     };
   }, [refresh]);
-  const flush = useCallback(async () => {
+  const flush = useCallback(async function drainQueue() {
     const owner = current.current.user?.id;
-    if (!owner || flushing.current) return;
+    if (!owner) return;
+    if (flushing.current) {
+      // Account/profile changes during an upload must trigger a subsequent drain.
+      flushRequested.current = true;
+      return;
+    }
     flushing.current = true;
     setError("");
     try {
@@ -125,33 +157,67 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
         .where("ownerId")
         .equals(owner)
         .toArray();
+      let completed = 0;
       for (const job of jobs) {
         if (current.current.user?.id !== owner) break;
         const session = await database.sessions.get(job.sessionId);
+        const consent = current.current.profile;
+        if (current.current.user?.id !== owner || consent?.id !== owner) break;
         if (!session) {
           await database.uploads.delete(job.id);
           continue;
         }
-        if (job.tokenId)
-          await onlineRequest({
-            action: "finalize",
-            token: job.tokenId,
-            session,
-          });
-        else if (current.current.profile?.sync_enabled)
-          await onlineRequest({ action: "sync", sessions: [session] });
-        else continue;
-        await database.uploads.delete(job.id);
+        try {
+          if (job.tokenId && consent.statistics_consent)
+            await onlineRequest(
+              {
+                action: "finalize",
+                token: job.tokenId,
+                session,
+              },
+              owner,
+            );
+          else if (consent.sync_enabled)
+            await onlineRequest({ action: "sync", sessions: [session] }, owner);
+          else continue;
+          await database.uploads.delete(job.id);
+          completed++;
+        } catch (cause) {
+          if (
+            job.tokenId &&
+            cause instanceof OnlineRequestError &&
+            [400, 403, 409].includes(cause.status)
+          ) {
+            await database.sessions.update(session.id, {
+              assessmentToken: undefined,
+            });
+            await database.uploads.put({ ...job, tokenId: undefined });
+            if (current.current.user?.id === owner)
+              setError(
+                `Online assessment could not qualify: ${cause.message} Your local result remains available.`,
+              );
+            continue;
+          }
+          throw cause;
+        }
       }
-      if (jobs.length) setStatus("Your queued results are up to date.");
+      if (completed && current.current.user?.id === owner)
+        setStatus(
+          `${completed} queued results uploaded. Other pending results remain saved locally.`,
+        );
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Sync is waiting. Your results are saved locally.",
-      );
+      if (current.current.user?.id === owner)
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Sync is waiting. Your results are saved locally.",
+        );
     } finally {
       flushing.current = false;
+      if (flushRequested.current) {
+        flushRequested.current = false;
+        void drainQueue();
+      }
     }
   }, []);
   useEffect(() => {
@@ -166,29 +232,23 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     sessions.forEach((session) => initialIds.current!.add(session.id));
     if (!user || !profile?.sync_enabled || !added.length) return;
     const owner = user.id;
-    const timer = setTimeout(() => {
-      void database.uploads
-        .bulkPut(
-          added
-            .filter(
-              (session) =>
-                !session.onlineOwner || session.onlineOwner === owner,
-            )
-            .map((session) => ({
-              id: `${owner}:${session.id}`,
-              ownerId: owner,
-              sessionId: session.id,
-              tokenId: session.assessmentToken,
-            })),
-        )
-        .then(flush)
-        .catch(() =>
-          setError(
-            "Online queue could not be saved. Export your local history.",
-          ),
-        );
-    }, 700);
-    return () => clearTimeout(timer);
+    void database.uploads
+      .bulkPut(
+        added
+          .filter(
+            (session) => !session.onlineOwner || session.onlineOwner === owner,
+          )
+          .map((session) => ({
+            id: `${owner}:${session.id}`,
+            ownerId: owner,
+            sessionId: session.id,
+            tokenId: session.assessmentToken,
+          })),
+      )
+      .then(flush)
+      .catch(() =>
+        setError("Online queue could not be saved. Export your local history."),
+      );
   }, [flush, loading, profile?.sync_enabled, sessions, user]);
   useEffect(() => {
     if (!user) return;
@@ -198,13 +258,37 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener("online", reconnect);
     return () => window.removeEventListener("online", reconnect);
-  }, [flush, user]);
+  }, [flush, user, profile]);
+  useEffect(() => {
+    if (!user) {
+      setChallengeDay(null);
+      return;
+    }
+    const timer = setInterval(
+      () =>
+        setChallengeDay(
+          new Date(Date.now() + serverOffset.current)
+            .toISOString()
+            .slice(0, 10),
+        ),
+      60000,
+    );
+    return () => clearInterval(timer);
+  }, [user]);
   const signIn = async (email: string) => {
     const client = await onlineClient();
-    const result = await client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
+    const existing = await client.auth.getUser();
+    const result = existing.data.user?.is_anonymous
+      ? await client.auth.updateUser(
+          { email },
+          { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        )
+      : await client.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
     if (result.error) throw result.error;
     setStatus(
       "Check your email for a sign-in link. Your local history stays here.",
@@ -227,12 +311,15 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     setStatus("Signed out. Local history is still in this browser.");
   };
   const setPreferences = async (sync: boolean, statistics: boolean) => {
-    await onlineRequest({
-      action: "preferences",
-      name: settings.name,
-      sync,
-      statistics,
-    });
+    await onlineRequest(
+      {
+        action: "preferences",
+        name: settings.name,
+        sync,
+        statistics,
+      },
+      user?.id,
+    );
     await refresh();
     setStatus("Your online preferences are saved.");
   };
@@ -258,9 +345,13 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
         })),
       );
       await flush();
-      const remote = await onlineRequest<{ sessions: unknown[] }>({
-        action: "history",
-      });
+      const remote = await onlineRequest<{ sessions: unknown[] }>(
+        {
+          action: "history",
+        },
+        user.id,
+      );
+      if (current.current.user?.id !== user.id) return;
       const imported = remote.sessions.map((session) =>
         sessionSchema.parse(session),
       );
@@ -273,7 +364,10 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     }
   };
   const deleteAccount = async () => {
-    await onlineRequest({ action: "delete" });
+    const owner = current.current.user?.id;
+    if (!owner) throw new Error("Sign in before deleting an online account.");
+    await onlineRequest({ action: "delete" }, owner);
+    if (current.current.user?.id !== owner) return;
     const client = await onlineClient();
     await client.auth.signOut({ scope: "local" });
     setUser(null);
@@ -283,16 +377,20 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
       "Online account and performance data deleted. Local history remains under your control.",
     );
   };
-  const issueAssessment = async (gameId: GameId, input: InputClass) =>
-    (
-      await onlineRequest<{ token: AssessmentToken }>({
-        action: "issue",
-        gameId,
-        input,
-      })
-    ).token;
-  const queueAssessment = async (session: Session, token: string) => {
+  const issueAssessment = async (gameId: GameId, input: InputClass) => {
     const owner = current.current.user?.id;
+    if (!owner)
+      throw new Error("Sign in before starting an online assessment.");
+    const issued = (
+      await onlineRequest<{ token: AssessmentToken }>(
+        { action: "issue", gameId, input },
+        owner,
+      )
+    ).token;
+    return { ...issued, ownerId: owner };
+  };
+  const queueAssessment = async (session: Session, token: string) => {
+    const owner = session.onlineOwner;
     if (!owner) return;
     await database.uploads.put({
       id: `${owner}:${session.id}`,
@@ -306,6 +404,7 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     <OnlineContext.Provider
       value={{
         configured: onlineConfigured,
+        challengeDay,
         user,
         profile,
         shares,

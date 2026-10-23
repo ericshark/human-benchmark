@@ -7,7 +7,12 @@ import { DEADLINE } from "../domain/scoring";
 import type { Trial } from "../domain/types";
 import type { GameProps } from "./runtime-types";
 
-export default function SignalGame({ mode, seed, onComplete }: GameProps) {
+export default function SignalGame({
+  mode,
+  seed,
+  onComplete,
+  variant = "classic",
+}: GameProps) {
   const [stage, setStage] = useState<"wait" | "go" | "feedback">("wait");
   const [count, setCount] = useState(0);
   const [feedback, setFeedback] = useState("");
@@ -37,7 +42,8 @@ export default function SignalGame({ mode, seed, onComplete }: GameProps) {
               if (current.stage === "go") record("timeout", performance.now());
             }, DEADLINE);
           }),
-        1000 + current.random() * 1800,
+        (variant === "remix" ? 300 : 1000) +
+          current.random() * (variant === "remix" ? 700 : 1800),
       );
     }
     function record(outcome: Trial["outcome"], now: number, eventAt?: number) {
@@ -75,6 +81,12 @@ export default function SignalGame({ mode, seed, onComplete }: GameProps) {
     function respond(event: KeyboardEvent | PointerEvent) {
       if (
         event instanceof KeyboardEvent &&
+        event.target instanceof Element &&
+        event.target.closest("button,a,input,select,textarea,summary")
+      )
+        return;
+      if (
+        event instanceof KeyboardEvent &&
         (event.code !== "Space" || event.repeat)
       )
         return;
@@ -99,7 +111,7 @@ export default function SignalGame({ mode, seed, onComplete }: GameProps) {
       window.removeEventListener("keydown", respond);
       arena?.removeEventListener("pointerdown", pointer);
     };
-  }, [clear, frame, limit, schedule]);
+  }, [clear, frame, limit, schedule, variant]);
   return (
     <>
       <div className="round-line">

@@ -219,6 +219,8 @@ export function scoreGame(
   };
 }
 export function scoreSession(session: Session): GameResult {
+  if (session.recordingExpired && session.archivedResult)
+    return session.archivedResult;
   return scoreGame(
     session.gameId,
     session.trials,
@@ -256,4 +258,21 @@ export function bestSession(sessions: Session[]): Session | undefined {
         ? session
         : best;
     }, undefined);
+}
+
+export function hasPrimaryMeasurement(session: Session): boolean {
+  return (
+    ![
+      "signal",
+      "crossroads",
+      "color-conflict",
+      "rule-shift",
+      "target-burst",
+    ].includes(session.gameId) || scoreSession(session).correct > 0
+  );
+}
+export function formatPrimary(session: Session): string {
+  return hasPrimaryMeasurement(session)
+    ? formatMetric(scoreSession(session).primary)
+    : "No valid responses";
 }

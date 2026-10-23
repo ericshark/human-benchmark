@@ -116,6 +116,26 @@ export function OnlineAccount() {
           </>
         ) : (
           <>
+            {online.user.is_anonymous && (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void run(() => online.signIn(email));
+                }}
+              >
+                <label htmlFor="link-email">Link email to this identity</label>
+                <input
+                  id="link-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+                <button className="button secondary" disabled={busy}>
+                  Send verification link
+                </button>
+              </form>
+            )}
             {!online.profile && (
               <button
                 className="button secondary"

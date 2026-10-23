@@ -12,12 +12,14 @@ import { useApp } from "../app/AppContext";
 import { gameById, introGames } from "../games/registry";
 import { dailyGames, localDay, weeklyGames } from "./progress";
 import { Icon } from "../components/Icon";
+import { useOnline } from "../app/OnlineContext";
 
 export default function Challenges() {
   const { sessions, introProgress, resetIntro } = useApp(),
     [params] = useSearchParams();
-  const daily = dailyGames(),
-    day = localDay(),
+  const online = useOnline();
+  const day = online.challengeDay ?? localDay();
+  const daily = dailyGames(day),
     weekly = weeklyGames();
   const nextIntro = introGames.find((id) => !introProgress.includes(id));
   const doneToday = daily.filter((id) =>
@@ -168,8 +170,10 @@ export default function Challenges() {
           ))}
         </div>
         <p className="small-note">
-          Daily challenges use shared seeds and your device’s local date. They
-          earn participation milestones and have separate records from
+          {online.challengeDay
+            ? "Daily challenges use shared seeds and the service’s UTC day."
+            : "Daily challenges use shared seeds and your device’s local date."}{" "}
+          They earn participation milestones and have separate records from
           assessments.
         </p>
         {doneToday.length === 3 && (

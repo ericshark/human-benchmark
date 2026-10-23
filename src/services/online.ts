@@ -3,6 +3,14 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 export const onlineConfigured = Boolean(url && key);
 let pending: Promise<SupabaseClient> | undefined;
+export class OnlineRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 export function onlineClient(): Promise<SupabaseClient> {
   if (!onlineConfigured)
     return Promise.reject(
@@ -21,10 +29,18 @@ export function onlineClient(): Promise<SupabaseClient> {
   );
   return pending;
 }
-export async function onlineRequest<T>(body: unknown): Promise<T> {
+export async function onlineRequest<T>(
+  body: unknown,
+  expectedOwner?: string,
+): Promise<T> {
   const client = await onlineClient();
   const { data } = await client.auth.getSession();
   if (!data.session) throw new Error("Sign in to use online features.");
+  if (expectedOwner && data.session.user.id !== expectedOwner)
+    throw new OnlineRequestError(
+      "The active account changed. This operation is waiting for its original account.",
+      401,
+    );
   const response = await fetch(`${url}/functions/v1/humanrank`, {
     method: "POST",
     headers: {
@@ -37,6 +53,9 @@ export async function onlineRequest<T>(body: unknown): Promise<T> {
   });
   const result = await response.json();
   if (!response.ok)
-    throw new Error(result.error ?? "Online request could not be completed.");
+    throw new OnlineRequestError(
+      result.error ?? "Online request could not be completed.",
+      response.status,
+    );
   return result as T;
 }

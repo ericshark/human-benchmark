@@ -21,9 +21,10 @@ export default function QuizGame({
   mode,
   seed,
   onComplete,
+  variant = "classic",
 }: GameProps) {
   const random = useRef(seededRandom(seed));
-  const legend = useRef(shuffle([1, 2, 3, 4], random.current));
+  const [legend] = useState(() => shuffle([1, 2, 3, 4], random.current));
   const [question, setQuestion] = useState<Question | null>(null);
   const [count, setCount] = useState(0),
     [remaining, setRemaining] = useState(mode === "practice" ? 15 : 45);
@@ -54,11 +55,13 @@ export default function QuizGame({
             : 40;
   const duration = mode === "practice" ? 15000 : 45000;
   const deadline =
-    gameId === "pattern-forge"
-      ? 15000
-      : gameId === "rotation-lab"
-        ? 8000
-        : 2500;
+    mode === "practice" && variant === "remix"
+      ? 60000
+      : gameId === "pattern-forge"
+        ? 15000
+        : gameId === "rotation-lab"
+          ? 8000
+          : 2500;
   const completeRef = useRef(onComplete);
   completeRef.current = onComplete;
   const answerRef = useRef<(answer: number, eventAt?: number) => void>(
@@ -111,7 +114,7 @@ export default function QuizGame({
         gameId,
         questionIndex,
         random.current,
-        legend.current,
+        legend,
         state.previousRule,
       );
       state.previousRule = next.level;
@@ -191,7 +194,17 @@ export default function QuizGame({
       clear();
       window.removeEventListener("keydown", keyboard);
     };
-  }, [clear, deadline, duration, frame, gameId, limit, schedule, timed]);
+  }, [
+    clear,
+    deadline,
+    duration,
+    frame,
+    gameId,
+    legend,
+    limit,
+    schedule,
+    timed,
+  ]);
   if (!question) return <div className="quiz-arena">Getting ready…</div>;
   return (
     <>
@@ -213,7 +226,7 @@ export default function QuizGame({
             <div key={symbol}>
               <span>{symbol}</span>
               <span className="muted">=</span>
-              <strong>{legend.current[index]}</strong>
+              <strong>{legend[index]}</strong>
             </div>
           ))}
         </div>

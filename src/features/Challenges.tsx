@@ -52,7 +52,7 @@ export default function Challenges() {
       >
         <div className="circuit-copy">
           <span className="challenge-tag">
-            <Sparkles size={14} strokeWidth={2.6} />
+            <Sparkles size={14} />
             Starter circuit
           </span>
           <h2>Find your strengths</h2>
@@ -62,7 +62,7 @@ export default function Challenges() {
           </p>
           <div className="circuit-facts">
             <span className="chip">
-              <Clock3 size={14} strokeWidth={2.4} />
+              <Clock3 size={14} />
               About 7 minutes
             </span>
             <span className="chip">{introProgress.length} / 6 done</span>
@@ -120,7 +120,7 @@ export default function Challenges() {
       <section className="daily-section">
         <div className="section-heading">
           <h2>
-            <Flame size={24} strokeWidth={2.6} />
+            <Flame size={24} />
             Daily challenge
           </h2>
           <span className="muted">
@@ -151,7 +151,7 @@ export default function Challenges() {
                 )}
               </div>
               <span className="daily-card-icon">
-                <Icon name={gameById[id].icon} size={34} strokeWidth={2.4} />
+                <Icon name={gameById[id].icon} size={34} />
               </span>
               <h3>{gameById[id].name}</h3>
               <p>{gameById[id].description}</p>
@@ -195,7 +195,7 @@ export default function Challenges() {
               style={accentStyle(gameById[id].category)}
               className={weeklyDone.includes(id) ? "done" : ""}
             >
-              <Icon name={gameById[id].icon} size={18} strokeWidth={2.4} />
+              <Icon name={gameById[id].icon} size={18} />
               {gameById[id].name}
               {weeklyDone.includes(id) ? (
                 <Check size={15} className="success-text" />

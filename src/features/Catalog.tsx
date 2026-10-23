@@ -38,7 +38,7 @@ export default function Catalog() {
           <p>12 quick games across 6 skills. Tap one to play.</p>
         </div>
         <label className="search-field">
-          <Search size={18} strokeWidth={2.6} />
+          <Search size={18} />
           <input
             aria-label="Search games"
             placeholder="Search games"
@@ -63,7 +63,7 @@ export default function Catalog() {
             aria-pressed={category === item.id}
             onClick={() => update("category", item.id)}
           >
-            <Icon name={item.id} size={16} strokeWidth={2.6} />
+            <Icon name={item.id} size={16} />
             {item.name}
           </button>
         ))}
@@ -76,7 +76,7 @@ export default function Catalog() {
         </div>
       ) : (
         <div className="empty-state">
-          <Search size={40} strokeWidth={2.4} />
+          <Search size={40} />
           <h2>No games found.</h2>
           <p>Try a different search.</p>
           <button

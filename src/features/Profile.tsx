@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -20,12 +20,7 @@ import { CoverageWheel, HistoryChart } from "../components/Charts";
 import { Icon } from "../components/Icon";
 import { ProfileExport } from "../components/ProfileExport";
 import { OnlineRatingSummary } from "../components/OnlineRatings";
-import {
-  achievements,
-  activeDays,
-  currentStreak,
-  playerProgress,
-} from "./progress";
+import { achievements, activeDays, currentStreak } from "./progress";
 
 export default function Profile() {
   const { sessions, settings, loading } = useApp();
@@ -44,7 +39,6 @@ export default function Profile() {
       !session.flags.length,
   );
   const earned = achievements(sessions);
-  const progress = useMemo(() => playerProgress(sessions), [sessions]);
   const recommended =
     games.find((game) => !played.has(game.id)) ??
     games.find(
@@ -62,36 +56,21 @@ export default function Profile() {
         </span>
         <div className="player-info">
           <h1>{settings.name}</h1>
-          <div className="player-level">
-            <span className="level-badge large">{progress.level}</span>
-            <div>
-              <strong>Level {progress.level}</strong>
-              <span className="level-meter large" aria-hidden="true">
-                <span
-                  style={{
-                    width: `${(progress.levelXp / progress.nextLevelXp) * 100}%`,
-                  }}
-                />
-              </span>
-              <small>
-                {progress.levelXp} / {progress.nextLevelXp} XP to level{" "}
-                {progress.level + 1} · {progress.xp} XP total
-              </small>
-            </div>
-          </div>
+          <p className="player-summary">
+            {valid.length} {valid.length === 1 ? "session" : "sessions"} ·{" "}
+            {played.size} of 12 games · {currentStreak(sessions)}-day streak
+          </p>
         </div>
         <div className="player-actions">
+          <ProfileExport />
+          <Link className="button secondary" to="/settings">
+            <Settings2 size={15} />
+            Manage my data
+          </Link>
           <Link className="button primary" to={`/play/${recommended.id}`}>
-            <Play size={18} fill="currentColor" />
+            <Play size={15} fill="currentColor" />
             {played.size ? `Play ${recommended.name}` : "Play your first game"}
           </Link>
-          <div className="inline-actions">
-            <ProfileExport />
-            <Link className="button secondary" to="/settings">
-              <Settings2 size={16} strokeWidth={2.4} />
-              Manage my data
-            </Link>
-          </div>
         </div>
       </section>
       <div className="stats-row">
@@ -100,30 +79,26 @@ export default function Profile() {
             icon: Trophy,
             value: valid.length,
             label: "Games completed",
-            tone: "orange",
           },
           {
             icon: Check,
             value: `${played.size} / 12`,
             label: "Games explored",
-            tone: "purple",
           },
           {
             icon: Flame,
             value: currentStreak(sessions),
             label: "Day streak",
-            tone: "pink",
           },
           {
             icon: CalendarDays,
             value: activeDays(sessions),
             label: "Days played",
-            tone: "teal",
           },
-        ].map(({ icon: ItemIcon, value, label, tone }) => (
-          <div className={`stat-block tone-${tone}`} key={label}>
+        ].map(({ icon: ItemIcon, value, label }) => (
+          <div className="stat-block" key={label}>
             <span className="stat-icon">
-              <ItemIcon size={20} strokeWidth={2.6} />
+              <ItemIcon size={16} />
             </span>
             <strong>{value}</strong>
             <span>{label}</span>
@@ -146,7 +121,7 @@ export default function Profile() {
                 ).length;
                 return (
                   <li key={category.id} style={accentStyle(category.id)}>
-                    <Icon name={category.id} size={16} strokeWidth={2.6} />
+                    <Icon name={category.id} size={16} />
                     <span>{category.name}</span>
                     <span className="skill-track">
                       <span style={{ width: `${count * 50}%` }} />
@@ -163,7 +138,7 @@ export default function Profile() {
       <section>
         <div className="section-heading">
           <h2>
-            <Medal size={22} strokeWidth={2.6} /> Personal bests
+            <Medal size={22} /> Personal bests
           </h2>
           <span className="muted">Best assessment per input</span>
         </div>
@@ -184,7 +159,7 @@ export default function Profile() {
                 style={accentStyle(game.category)}
               >
                 <span className="best-icon">
-                  <Icon name={game.icon} size={20} strokeWidth={2.4} />
+                  <Icon name={game.icon} size={20} />
                 </span>
                 <span className="best-name">{game.name}</span>
                 {inputs.length ? (
@@ -261,7 +236,7 @@ export default function Profile() {
       <section>
         <div className="section-heading">
           <h2>
-            <Trophy size={22} strokeWidth={2.6} /> Badges
+            <Trophy size={22} /> Badges
           </h2>
           <span className="muted">
             {earned.filter((item) => item.unlocked).length} / {earned.length}{" "}
@@ -276,9 +251,9 @@ export default function Profile() {
             >
               <span className="badge-medal">
                 {item.unlocked ? (
-                  <Icon name={item.icon} size={28} strokeWidth={2.4} />
+                  <Icon name={item.icon} size={28} />
                 ) : (
-                  <Lock size={24} strokeWidth={2.4} />
+                  <Lock size={24} />
                 )}
               </span>
               <h3>{item.title}</h3>
@@ -294,7 +269,7 @@ export default function Profile() {
         <div className="section-heading">
           <h2>Recent games</h2>
           <Link className="text-link" to="/games">
-            Play something new <ArrowRight size={15} strokeWidth={2.6} />
+            Play something new <ArrowRight size={15} />
           </Link>
         </div>
         {sessions.length ? (

@@ -17,7 +17,7 @@ import {
   ArrowRight,
   Clock3,
   Keyboard,
-  PartyPopper,
+  CircleCheck,
   Play,
   RotateCcw,
   Settings2,
@@ -278,15 +278,13 @@ function GameSession({ gameId }: { gameId: GameId }) {
       {stage === "instructions" && (
         <>
           <Link to="/games" className="back-link">
-            <ArrowLeft size={16} strokeWidth={2.6} />
+            <ArrowLeft size={16} />
             All games
           </Link>
           <section className="how-to-play">
             <div className="how-to-art">
-              <span className="art-blob blob-one" />
-              <span className="art-blob blob-two" />
-              <Icon name={game.icon} size={96} strokeWidth={2.2} />
               <span className="category-pill">{category.name}</span>
+              <Icon name={game.icon} size={72} strokeWidth={1.25} />
             </div>
             <div className="how-to-copy">
               <h1>{game.name}</h1>
@@ -299,12 +297,12 @@ function GameSession({ gameId }: { gameId: GameId }) {
               </ol>
               <div className="how-to-meta">
                 <span className="chip">
-                  <Clock3 size={14} strokeWidth={2.4} />
+                  <Clock3 size={14} />
                   {game.duration}
                 </span>
                 {game.keys && (
                   <span className="chip">
-                    <Keyboard size={14} strokeWidth={2.4} />
+                    <Keyboard size={14} />
                     {game.keys.join(" ")}
                   </span>
                 )}
@@ -313,8 +311,8 @@ function GameSession({ gameId }: { gameId: GameId }) {
                 )}
               </div>
               <div className="instruction-actions">
-                <button className="button primary huge" onClick={() => start()}>
-                  <Play size={22} fill="currentColor" />
+                <button className="button primary" onClick={() => start()}>
+                  <Play size={16} fill="currentColor" />
                   {daily ? "Start daily challenge" : "Start assessment"}
                 </button>
                 <button
@@ -326,7 +324,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
               </div>
               <details className="more-options">
                 <summary>
-                  <Settings2 size={16} strokeWidth={2.4} />
+                  <Settings2 size={16} />
                   More options
                 </summary>
                 {!["math-sprint", "symbol-match"].includes(gameId) && (
@@ -446,7 +444,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
         >
           <div className="game-stage-header">
             <span className="stage-title">
-              <Icon name={game.icon} size={18} strokeWidth={2.4} />
+              <Icon name={game.icon} size={18} />
               {game.name}
               {stage === "practice" && (
                 <span className="practice-tag">Practice · not saved</span>
@@ -460,7 +458,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
                 )
               }
             >
-              <X size={16} strokeWidth={2.8} />
+              <X size={16} />
               End session
             </button>
           </div>
@@ -490,7 +488,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
       {stage === "practice-finished" && (
         <div className="session-state">
           <span className="state-icon">
-            <PartyPopper size={44} strokeWidth={2.2} />
+            <CircleCheck size={32} strokeWidth={1.75} />
           </span>
           <h2>You’ve got the idea.</h2>
           <p>
@@ -501,8 +499,8 @@ function GameSession({ gameId }: { gameId: GameId }) {
             . Practice isn’t saved — ready for the real thing?
           </p>
           <div className="inline-actions">
-            <button className="button primary huge" onClick={() => start()}>
-              Start full assessment <ArrowRight size={20} strokeWidth={2.6} />
+            <button className="button primary" onClick={() => start()}>
+              Start full assessment <ArrowRight size={16} />
             </button>
             <button className="button secondary" onClick={() => start(true)}>
               Practice again
@@ -513,13 +511,13 @@ function GameSession({ gameId }: { gameId: GameId }) {
       {stage === "interrupted" && (
         <div className="session-state">
           <span className="state-icon warning">
-            <TriangleAlert size={40} strokeWidth={2.2} />
+            <TriangleAlert size={32} strokeWidth={1.75} />
           </span>
           <h2>A fresh start?</h2>
           <p>{interruption}</p>
           <div className="inline-actions">
-            <button className="button primary huge" onClick={() => start()}>
-              <RotateCcw size={20} strokeWidth={2.6} />
+            <button className="button primary" onClick={() => start()}>
+              <RotateCcw size={16} />
               Try again
             </button>
             <button
@@ -534,7 +532,7 @@ function GameSession({ gameId }: { gameId: GameId }) {
       {stage === "saving" && (
         <div className="session-state">
           <span className="state-icon spin" />
-          <h2>Counting your score…</h2>
+          <h2>Saving result…</h2>
         </div>
       )}
     </div>

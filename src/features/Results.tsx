@@ -1,5 +1,4 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { useMemo } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -28,8 +27,7 @@ import {
 } from "../domain/scoring";
 import { HistoryChart, TrialChart } from "../components/Charts";
 import { Icon } from "../components/Icon";
-import { dailyGames, playerProgress, sessionXp } from "./progress";
-import { Confetti } from "../components/Confetti";
+import { dailyGames } from "./progress";
 import { PopulationComparison } from "../components/OnlineRatings";
 import { ResultExtras } from "../components/ResultExtras";
 
@@ -38,11 +36,6 @@ export default function Results() {
     [params] = useSearchParams();
   const { sessions, loading, introProgress, storageError } = useApp();
   const session = sessions.find((item) => item.id === sessionId);
-  const progress = useMemo(() => playerProgress(sessions), [sessions]);
-  const earnedXp = useMemo(
-    () => (sessionId ? sessionXp(sessions).get(sessionId)?.xp : undefined),
-    [sessions, sessionId],
-  );
   if (loading)
     return <div className="page loading-state">Opening your result…</div>;
   if (!session)
@@ -102,18 +95,18 @@ export default function Results() {
     canvas.height = 630;
     const ctx = canvas.getContext("2d");
     if (!ctx || !session) return;
-    ctx.fillStyle = "#fff8ec";
+    ctx.fillStyle = "#0b0b0d";
     ctx.fillRect(0, 0, 1200, 630);
+    ctx.fillStyle = "#7c8cff";
+    ctx.fillRect(75, 62, 18, 18);
+    ctx.fillStyle = "#ededef";
+    ctx.font = "600 32px sans-serif";
+    ctx.fillText("HumanRank", 105, 82);
     ctx.fillStyle = category.color;
-    ctx.fillRect(0, 0, 1200, 18);
-    ctx.fillStyle = "#1f1b3a";
-    ctx.font = "bold 36px sans-serif";
-    ctx.fillText("HumanRank", 75, 90);
-    ctx.fillStyle = category.deep;
     ctx.font = "24px sans-serif";
     ctx.fillText(`${category.name.toUpperCase()}  /  ${game.name}`, 75, 195);
-    ctx.fillStyle = "#1f1b3a";
-    ctx.font = "bold 100px sans-serif";
+    ctx.fillStyle = "#ededef";
+    ctx.font = "600 100px sans-serif";
     ctx.fillText(
       validPrimary ? formatMetric(result.primary) : "No valid response",
       75,
@@ -121,7 +114,7 @@ export default function Results() {
     );
     ctx.font = "30px sans-serif";
     ctx.fillText(result.primary.label, 75, 395);
-    ctx.fillStyle = "#6b6489";
+    ctx.fillStyle = "#8b8b93";
     ctx.font = "22px sans-serif";
     ctx.fillText(
       `${session.mode === "daily" ? "Daily challenge" : "Local assessment"} · ${session.input} · protocol v1 · ${new Date(session.completedAt).toLocaleDateString()}`,
@@ -152,7 +145,6 @@ export default function Results() {
       : "—";
   return (
     <div className="page results-page" style={accentStyle(game.category)}>
-      {record && <Confetti />}
       {!!session.flags.length && (
         <div className="notice warning" role="alert">
           <TriangleAlert size={19} />
@@ -160,30 +152,31 @@ export default function Results() {
             <strong>Measurement needs a second look</strong>
             <p>
               {session.flags.join(" ")} This session is in your history but
-              excluded from records, XP, and coverage.
+              excluded from records and coverage.
             </p>
           </div>
         </div>
       )}
-      <section className={`result-hero ${record ? "record" : ""}`}>
+      <section className="result-hero">
         <div className="result-main">
           <span className="result-game">
             <span className="result-game-icon">
-              <Icon name={game.icon} size={20} strokeWidth={2.4} />
+              <Icon name={game.icon} size={16} />
             </span>
             {game.name}
             {session.mode === "daily" && (
               <span className="chip daily-chip">Daily</span>
             )}
           </span>
-          {record ? (
-            <span className="record-banner">
-              <Trophy size={20} strokeWidth={2.6} />
-              New personal best!
-            </span>
-          ) : (
-            <span className="result-label">{result.primary.label}</span>
-          )}
+          <span className="result-label">
+            {result.primary.label}
+            {record && (
+              <span className="record-tag">
+                <Trophy size={12} />
+                New best
+              </span>
+            )}
+          </span>
           <div className="result-number">
             {validPrimary ? (
               <>
@@ -194,31 +187,15 @@ export default function Results() {
               <span>No valid responses</span>
             )}
           </div>
-          {record && (
-            <span className="result-label">{result.primary.label}</span>
-          )}
           <p className="result-meta">
             {result.correct} correct{" "}
             {game.id === "orbit-track" ? "samples" : "responses"} ·{" "}
             {session.mode === "daily" ? "Daily circuit" : "Assessment"} ·{" "}
             {session.input}
           </p>
-          {earnedXp !== undefined && (
-            <div className="xp-gain">
-              <span className="xp-chip">+{earnedXp} XP</span>
-              <span className="xp-level">Level {progress.level}</span>
-              <span className="level-meter large" aria-hidden="true">
-                <span
-                  style={{
-                    width: `${(progress.levelXp / progress.nextLevelXp) * 100}%`,
-                  }}
-                />
-              </span>
-            </div>
-          )}
           <div className="result-badges">
             <span>
-              <ShieldCheck size={14} strokeWidth={2.4} />
+              <ShieldCheck size={14} />
               {storageError
                 ? "Available for this visit · export to keep"
                 : "Saved to this browser"}
@@ -246,31 +223,31 @@ export default function Results() {
       </section>
       <div className="result-actions">
         <Link
-          className="button primary huge"
+          className="button primary"
           to={`/play/${game.id}${circuit ? `?circuit=${circuit}` : ""}`}
         >
-          <RotateCcw size={20} strokeWidth={2.6} />
+          <RotateCcw size={16} />
           Play again
         </Link>
         {circuit ? (
           nextGame ? (
             <Link
-              className="button secondary huge"
+              className="button secondary"
               to={`/play/${nextGame}?circuit=${circuit}`}
             >
               Next: {gameById[nextGame].name}
-              <ArrowRight size={20} strokeWidth={2.6} />
+              <ArrowRight size={16} />
             </Link>
           ) : (
-            <Link className="button secondary huge" to="/challenges">
-              <Check size={20} strokeWidth={2.6} />
+            <Link className="button secondary" to="/challenges">
+              <Check size={16} />
               Circuit complete
             </Link>
           )
         ) : (
-          <Link className="button secondary huge" to={`/play/${suggestion}`}>
+          <Link className="button secondary" to={`/play/${suggestion}`}>
             Try {gameById[suggestion].name}
-            <ArrowRight size={20} strokeWidth={2.6} />
+            <ArrowRight size={16} />
           </Link>
         )}
         <button
@@ -279,7 +256,7 @@ export default function Results() {
           aria-label="Save result card"
           title="Save result card"
         >
-          <Download size={20} strokeWidth={2.4} />
+          <Download size={16} />
         </button>
       </div>
       <div className="metric-grid">
@@ -300,7 +277,7 @@ export default function Results() {
       </div>
       <details className="result-details">
         <summary>
-          <BarChart3 size={18} strokeWidth={2.4} />
+          <BarChart3 size={18} />
           See details & charts
         </summary>
         <div className="result-chart-grid">

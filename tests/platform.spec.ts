@@ -67,7 +67,7 @@ test("discovery, catalog filters, methodology and responsive navigation", async 
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Ready, set, play." }),
+    page.getByRole("heading", { name: "Find your strengths" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "All 12 games", exact: true }).click();
   await expect(page.locator(".game-card")).toHaveCount(12);

@@ -1,32 +1,30 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  CalendarCheck,
-  Check,
-  Flame,
-  Medal,
-  Play,
-  Star,
-  Swords,
-} from "lucide-react";
+import { ArrowRight, Check, Clock3, Play } from "lucide-react";
 import { useApp } from "../app/AppContext";
 import { useOnline } from "../app/OnlineContext";
-import { accentStyle, gameById, games, introGames } from "../games/registry";
-import { GameArt, GameCard } from "../components/GameCard";
+import {
+  accentStyle,
+  gameById,
+  games,
+  getCategory,
+  introGames,
+} from "../games/registry";
+import { bestSession, formatPrimary } from "../domain/scoring";
+import { GameCard } from "../components/GameCard";
 import { Icon } from "../components/Icon";
 import {
   currentStreak,
   dailyGames,
   localDay,
-  playerProgress,
+  personalRecords,
 } from "./progress";
 
 export default function Home() {
-  const { sessions, settings, introProgress } = useApp();
+  const { sessions, introProgress } = useApp();
   const online = useOnline();
-  const progress = useMemo(() => playerProgress(sessions), [sessions]);
   const streak = useMemo(() => currentStreak(sessions), [sessions]);
+  const records = useMemo(() => personalRecords(sessions).size, [sessions]);
   const valid = sessions.filter(
     (session) => session.mode === "assessment" && !session.flags.length,
   );
@@ -54,31 +52,62 @@ export default function Home() {
         return { id, href: `/play/${id}?circuit=daily` };
       })();
   const upNextGame = gameById[upNext.id];
+  const upNextBest = bestSession(
+    valid.filter((session) => session.gameId === upNext.id),
+  );
   return (
     <div className="page home-page">
-      <section className="up-next" style={accentStyle(upNextGame.category)}>
-        <div className="up-next-copy">
-          <span className="up-next-label">
-            {firstVisit
-              ? `Welcome, ${settings.name}!`
-              : nextIntro
-                ? `Starter circuit · game ${introProgress.length + 1} of 6`
-                : "Up next"}
+      {firstVisit ? (
+        <section className="up-next intro">
+          <div className="up-next-copy">
+            <span className="eyebrow">Starter circuit · 6 games</span>
+            <h1>Find your strengths</h1>
+            <p>
+              One short test from each skill: reflexes, memory, focus,
+              reasoning, precision, and processing. About 7 minutes.
+            </p>
+            <div className="up-next-actions">
+              <Link className="button primary" to={upNext.href}>
+                <Play size={16} fill="currentColor" />
+                Discover my strengths
+              </Link>
+              <Link className="button secondary" to="/games">
+                Browse games
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="up-next" style={accentStyle(upNextGame.category)}>
+          <span className="icon-tile large">
+            <Icon name={upNextGame.icon} size={26} strokeWidth={1.75} />
           </span>
-          <h1>{firstVisit ? "Ready, set, play." : upNextGame.name}</h1>
-          <p>
-            {firstVisit
-              ? "Six quick games, one from every skill. Find out what you’re great at in about 7 minutes."
-              : upNextGame.description}
-          </p>
+          <div className="up-next-copy">
+            <span className="eyebrow">
+              {nextIntro
+                ? `Starter circuit · ${introProgress.length + 1} of 6`
+                : "Up next"}
+            </span>
+            <h1>{upNextGame.name}</h1>
+            <p>{upNextGame.description}</p>
+            <div className="up-next-meta">
+              <span>{getCategory(upNextGame.category).name}</span>
+              <span>
+                <Clock3 size={13} />
+                {upNextGame.duration}
+              </span>
+              {upNextBest && <span>Best {formatPrimary(upNextBest)}</span>}
+            </div>
+          </div>
           <div className="up-next-actions">
-            <Link className="button primary huge light" to={upNext.href}>
-              <Play size={22} fill="currentColor" />
-              {firstVisit ? "Discover my strengths" : `Play ${upNextGame.name}`}
+            <Link className="button primary" to={upNext.href}>
+              <Play size={16} fill="currentColor" />
+              Play {upNextGame.name}
             </Link>
-            {nextIntro && !firstVisit && (
+            {nextIntro && (
               <span
                 className="intro-pips"
+                role="img"
                 aria-label={`${introProgress.length} of 6 starter games done`}
               >
                 {introGames.map((id) => (
@@ -90,47 +119,45 @@ export default function Home() {
               </span>
             )}
           </div>
-        </div>
-        <GameArt game={upNextGame} size="hero" />
+        </section>
+      )}
+
+      <section className="stat-strip" aria-label="Your stats">
+        {[
+          { value: streak, label: "Day streak" },
+          { value: `${played.size}/12`, label: "Games tried" },
+          { value: records, label: "Personal bests" },
+          { value: valid.length, label: "Sessions" },
+        ].map(({ value, label }) => (
+          <div className="mini-stat" key={label}>
+            <strong>{value}</strong>
+            <span>{label}</span>
+          </div>
+        ))}
+        <Link className="text-link" to="/profile">
+          All stats <ArrowRight size={14} />
+        </Link>
       </section>
 
-      <div className="home-row">
-        <section className="daily-card-home card">
-          <div className="card-heading">
-            <span className="card-icon daily-icon">
-              <CalendarCheck size={20} strokeWidth={2.6} />
-            </span>
-            <div>
-              <h2>Daily challenge</h2>
-              <p>
-                {dailyDone.length === 3
-                  ? "All done today. Come back tomorrow!"
-                  : "3 games · same puzzles for everyone today"}
-              </p>
-            </div>
+      <div className="home-columns">
+        <section className="home-games">
+          <div className="section-heading">
+            <h2>Starter games</h2>
+            <Link className="text-link" to="/games">
+              All 12 games
+            </Link>
           </div>
-          <div className="daily-games">
-            {daily.map((id) => (
-              <Link
-                key={id}
-                to={`/play/${id}?circuit=daily`}
-                className={`daily-game ${dailyDone.includes(id) ? "done" : ""}`}
-                style={accentStyle(gameById[id].category)}
-              >
-                <span className="daily-game-icon">
-                  {dailyDone.includes(id) ? (
-                    <Check size={22} strokeWidth={3} />
-                  ) : (
-                    <Icon
-                      name={gameById[id].icon}
-                      size={22}
-                      strokeWidth={2.4}
-                    />
-                  )}
-                </span>
-                <span>{gameById[id].name}</span>
-              </Link>
+          <div className="game-grid compact">
+            {introGames.map((id) => (
+              <GameCard key={id} game={gameById[id]} sessions={sessions} />
             ))}
+          </div>
+        </section>
+
+        <section className="card daily-card-home">
+          <div className="section-heading">
+            <h2>Daily challenge</h2>
+            <span className="muted">{dailyDone.length}/3</span>
           </div>
           <div
             className="progress-bar"
@@ -142,76 +169,31 @@ export default function Home() {
           >
             <span style={{ width: `${(dailyDone.length / 3) * 100}%` }} />
           </div>
-          {nextDaily ? (
-            <Link
-              className="button primary daily-button"
-              to={`/play/${nextDaily}?circuit=daily`}
-            >
-              {dailyDone.length ? "Keep going" : "Play daily"}
-              <ArrowRight size={18} strokeWidth={2.6} />
-            </Link>
-          ) : (
-            <Link className="button secondary daily-button" to="/challenges">
-              See challenges
-            </Link>
-          )}
-        </section>
-
-        <section className="stat-strip card">
-          <div className="card-heading">
-            <h2>Your stats</h2>
-            <Link className="text-link" to="/profile">
-              See all <ArrowRight size={16} strokeWidth={2.6} />
-            </Link>
-          </div>
-          <div className="mini-stats">
-            <div className="mini-stat level">
-              <Star size={20} strokeWidth={2.6} />
-              <strong>{progress.level}</strong>
-              <span>Level</span>
-              <span className="mini-meter">
-                <span
-                  style={{
-                    width: `${(progress.levelXp / progress.nextLevelXp) * 100}%`,
-                  }}
-                />
-              </span>
-            </div>
-            <div className="mini-stat streak">
-              <Flame size={20} strokeWidth={2.6} />
-              <strong>{streak}</strong>
-              <span>Day streak</span>
-            </div>
-            <div className="mini-stat played">
-              <Swords size={20} strokeWidth={2.6} />
-              <strong>
-                {played.size}
-                <small>/12</small>
-              </strong>
-              <span>Games tried</span>
-            </div>
-            <div className="mini-stat records">
-              <Medal size={20} strokeWidth={2.6} />
-              <strong>{progress.records}</strong>
-              <span>Personal bests</span>
-            </div>
-          </div>
+          <ul className="daily-list">
+            {daily.map((id) => (
+              <li key={id} style={accentStyle(gameById[id].category)}>
+                <Link to={`/play/${id}?circuit=daily`}>
+                  <span className="icon-tile">
+                    <Icon name={gameById[id].icon} size={16} />
+                  </span>
+                  <span className="daily-name">{gameById[id].name}</span>
+                  {dailyDone.includes(id) ? (
+                    <span className="daily-status done">
+                      <Check size={14} /> Done
+                    </span>
+                  ) : (
+                    <span className="daily-status">Play</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="small-note">
+            Same three games for everyone today. Scores are kept separate from
+            regular sessions.
+          </p>
         </section>
       </div>
-
-      <section className="home-games">
-        <div className="section-heading">
-          <h2>Pick a game</h2>
-          <Link className="text-link" to="/games">
-            All 12 games
-          </Link>
-        </div>
-        <div className="game-grid">
-          {introGames.map((id) => (
-            <GameCard key={id} game={gameById[id]} sessions={sessions} />
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

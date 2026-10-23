@@ -51,7 +51,7 @@ export function OnlineRatingSummary() {
   return (
     <section className="card rank-preview">
       <div className="rank-icon">
-        <Sparkles size={22} strokeWidth={2.6} />
+        <Sparkles size={22} />
       </div>
       <span className="eyebrow">HumanRank score</span>
       {rating?.index !== undefined ? (

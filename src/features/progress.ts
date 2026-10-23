@@ -113,17 +113,12 @@ export function achievements(sessions: Session[]) {
   ];
 }
 
-export const XP_REWARDS = { game: 100, daily: 50, record: 150 } as const;
-
 /**
- * XP earned by each saved session. A record bonus is only granted when a
- * session strictly beats every earlier comparable session, so the very first
- * attempt at a game never counts as a personal best.
+ * Ids of sessions that strictly beat every earlier comparable session. The
+ * first attempt in a group never counts, and ties do not count.
  */
-export function sessionXp(
-  sessions: Session[],
-): Map<string, { xp: number; record: boolean }> {
-  const earned = new Map<string, { xp: number; record: boolean }>();
+export function personalRecords(sessions: Session[]): Set<string> {
+  const records = new Set<string>();
   const groups = new Map<string, Session[]>();
   for (const session of sessions) {
     if (session.mode === "practice" || session.flags.length) continue;
@@ -140,40 +135,9 @@ export function sessionXp(
     let best: Session | undefined;
     for (const session of group) {
       const leader = bestSession(best ? [best, session] : [session]);
-      const record = !!best && leader === session;
+      if (best && leader === session) records.add(session.id);
       best = leader;
-      earned.set(session.id, {
-        xp:
-          XP_REWARDS.game +
-          (session.mode === "daily" ? XP_REWARDS.daily : 0) +
-          (record ? XP_REWARDS.record : 0),
-        record,
-      });
     }
   }
-  return earned;
-}
-
-/** Total XP needed to reach a level: 0, 100, 300, 600, 1000, … */
-export function levelThreshold(level: number): number {
-  return (XP_REWARDS.game * (level - 1) * level) / 2;
-}
-export function playerProgress(sessions: Session[]) {
-  let xp = 0,
-    records = 0;
-  for (const value of sessionXp(sessions).values()) {
-    xp += value.xp;
-    if (value.record) records++;
-  }
-  let level = 1;
-  while (xp >= levelThreshold(level + 1)) level++;
-  const floor = levelThreshold(level),
-    ceiling = levelThreshold(level + 1);
-  return {
-    xp,
-    level,
-    levelXp: xp - floor,
-    nextLevelXp: ceiling - floor,
-    records,
-  };
+  return records;
 }

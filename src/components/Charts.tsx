@@ -48,7 +48,7 @@ export function CoverageWheel({
                   ? categories.find((item) => item.id === game.category)!.color
                   : "var(--track)"
               }
-              strokeWidth="20"
+              strokeWidth="12"
               strokeLinecap="round"
             />
           );

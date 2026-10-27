@@ -24,13 +24,34 @@ import { achievements, activeDays, currentStreak } from "./progress";
 
 export default function Profile() {
   const { sessions, settings, loading } = useApp();
-  const [historyGame, setHistoryGame] = useState<GameId>("signal");
-  const [historyMode, setHistoryMode] = useState<Mode>("assessment");
-  const [historyInput, setHistoryInput] = useState<InputClass>(settings.input);
+  const [historyChoice, setHistoryChoice] = useState<{
+    game: GameId;
+    mode: Mode;
+    input: InputClass;
+  }>();
   const valid = sessions.filter(
     (session) => session.mode === "assessment" && !session.flags.length,
   );
   const played = new Set(valid.map((session) => session.gameId));
+  const unplayed = games.filter((game) => !played.has(game.id));
+  // Until the player picks a filter, chart whatever they played most recently.
+  const latest = sessions.find((session) => !session.flags.length);
+  const {
+    game: historyGame,
+    mode: historyMode,
+    input: historyInput,
+  } = historyChoice ?? {
+    game: latest?.gameId ?? "signal",
+    mode: latest?.mode ?? "assessment",
+    input: latest?.input ?? settings.input,
+  };
+  const chooseHistory = (change: Partial<NonNullable<typeof historyChoice>>) =>
+    setHistoryChoice({
+      game: historyGame,
+      mode: historyMode,
+      input: historyInput,
+      ...change,
+    });
   const history = sessions.filter(
     (session) =>
       session.gameId === historyGame &&
@@ -143,27 +164,28 @@ export default function Profile() {
           <span className="muted">Best assessment per input</span>
         </div>
         <div className="bests-grid">
-          {games.map((game) => {
-            const inputs = [
-              ...new Set(
-                valid
-                  .filter((session) => session.gameId === game.id)
-                  .map((session) => session.input),
-              ),
-            ];
-            return (
-              <Link
-                to={`/play/${game.id}`}
-                className={`best-tile ${inputs.length ? "" : "empty"}`}
-                key={game.id}
-                style={accentStyle(game.category)}
-              >
-                <span className="best-icon">
-                  <Icon name={game.icon} size={20} />
-                </span>
-                <span className="best-name">{game.name}</span>
-                {inputs.length ? (
-                  inputs.map((input) => {
+          {games
+            .filter((game) => played.has(game.id))
+            .map((game) => {
+              const inputs = [
+                ...new Set(
+                  valid
+                    .filter((session) => session.gameId === game.id)
+                    .map((session) => session.input),
+                ),
+              ];
+              return (
+                <Link
+                  to={`/play/${game.id}`}
+                  className="best-tile"
+                  key={game.id}
+                  style={accentStyle(game.category)}
+                >
+                  <span className="best-icon">
+                    <Icon name={game.icon} size={20} />
+                  </span>
+                  <span className="best-name">{game.name}</span>
+                  {inputs.map((input) => {
                     const best = bestSession(
                       valid.filter(
                         (session) =>
@@ -178,13 +200,35 @@ export default function Profile() {
                         <small>{input}</small>
                       </span>
                     );
-                  })
-                ) : (
-                  <span className="best-value muted">Not played yet</span>
-                )}
-              </Link>
-            );
-          })}
+                  })}
+                </Link>
+              );
+            })}
+          {unplayed.length > 0 && (
+            <Link to={`/play/${unplayed[0].id}`} className="best-tile untried">
+              <span className="untried-icons" aria-hidden="true">
+                {unplayed.slice(0, 5).map((game) => (
+                  <span
+                    key={game.id}
+                    className="best-icon"
+                    style={accentStyle(game.category)}
+                  >
+                    <Icon name={game.icon} size={14} />
+                  </span>
+                ))}
+              </span>
+              <span className="best-value">
+                <strong>
+                  {unplayed.length === 12
+                    ? "Your bests collect here"
+                    : `${unplayed.length} more to try`}
+                </strong>
+                <small>
+                  Next: {unplayed[0].name} <ArrowRight size={12} />
+                </small>
+              </span>
+            </Link>
+          )}
         </div>
       </section>
       <section className="card history-panel">
@@ -197,7 +241,7 @@ export default function Profile() {
                 aria-label="History game"
                 value={historyGame}
                 onChange={(event) =>
-                  setHistoryGame(event.target.value as GameId)
+                  chooseHistory({ game: event.target.value as GameId })
                 }
               >
                 {games.map((game) => (
@@ -211,7 +255,7 @@ export default function Profile() {
               aria-label="History input"
               value={historyInput}
               onChange={(event) =>
-                setHistoryInput(event.target.value as InputClass)
+                chooseHistory({ input: event.target.value as InputClass })
               }
             >
               {["mouse", "trackpad", "touch", "keyboard"].map((input) => (
@@ -221,7 +265,9 @@ export default function Profile() {
             <select
               aria-label="History mode"
               value={historyMode}
-              onChange={(event) => setHistoryMode(event.target.value as Mode)}
+              onChange={(event) =>
+                chooseHistory({ mode: event.target.value as Mode })
+              }
             >
               <option value="assessment">Assessment</option>
               <option value="daily">Daily circuit</option>

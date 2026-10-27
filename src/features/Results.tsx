@@ -6,9 +6,12 @@ import {
   Download,
   RotateCcw,
   ShieldCheck,
+  TrendingDown,
+  TrendingUp,
   Trophy,
   TriangleAlert,
 } from "lucide-react";
+import type { Session } from "../domain/types";
 import { useApp } from "../app/AppContext";
 import {
   accentStyle,
@@ -95,13 +98,29 @@ export default function Results() {
     canvas.height = 630;
     const ctx = canvas.getContext("2d");
     if (!ctx || !session) return;
-    ctx.fillStyle = "#0b0b0d";
+    ctx.fillStyle = "#08080a";
     ctx.fillRect(0, 0, 1200, 630);
-    ctx.fillStyle = "#7c8cff";
-    ctx.fillRect(75, 62, 18, 18);
+    const glow = ctx.createRadialGradient(600, -80, 0, 600, -80, 720);
+    glow.addColorStop(0, `${category.color}40`);
+    glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, 1200, 630);
+    // Brand mark: matches .brand-mark and favicon.svg.
+    const mark = ctx.createLinearGradient(75, 58, 103, 86);
+    mark.addColorStop(0, "#98a1ff");
+    mark.addColorStop(1, "#6570f0");
+    ctx.fillStyle = mark;
+    ctx.beginPath();
+    ctx.roundRect(75, 58, 28, 28, 8);
+    ctx.fill();
+    ctx.fillStyle = "#0a0a12";
+    ctx.beginPath();
+    ctx.roundRect(83, 72, 4, 8, 2);
+    ctx.roundRect(91, 66, 4, 14, 2);
+    ctx.fill();
     ctx.fillStyle = "#ededef";
     ctx.font = "600 32px sans-serif";
-    ctx.fillText("HumanRank", 105, 82);
+    ctx.fillText("HumanRank", 117, 83);
     ctx.fillStyle = category.color;
     ctx.font = "24px sans-serif";
     ctx.fillText(`${category.name.toUpperCase()}  /  ${game.name}`, 75, 195);
@@ -114,7 +133,7 @@ export default function Results() {
     );
     ctx.font = "30px sans-serif";
     ctx.fillText(result.primary.label, 75, 395);
-    ctx.fillStyle = "#8b8b93";
+    ctx.fillStyle = "#8e8e96";
     ctx.font = "22px sans-serif";
     ctx.fillText(
       `${session.mode === "daily" ? "Daily challenge" : "Local assessment"} · ${session.input} · protocol v1 · ${new Date(session.completedAt).toLocaleDateString()}`,
@@ -132,17 +151,61 @@ export default function Results() {
     link.href = canvas.toDataURL("image/png");
     link.click();
   }
-  const typical =
+  const typicalValue =
     measuredHistory.length >= 2
-      ? formatMetric({
-          ...result.primary,
-          value: median(
-            measuredHistory
-              .slice(0, 5)
-              .map((item) => scoreSession(item).primary.value),
-          ),
-        })
-      : "—";
+      ? median(
+          measuredHistory
+            .slice(0, 5)
+            .map((item) => scoreSession(item).primary.value),
+        )
+      : undefined;
+  const typical =
+    typicalValue === undefined
+      ? "—"
+      : formatMetric({ ...result.primary, value: typicalValue });
+  const bestIsMeasured = !!best && hasPrimaryMeasurement(best);
+  // Signed comparison of this session against another value, phrased by the game's direction.
+  function compareTo(value: number | undefined) {
+    if (!validPrimary || value === undefined) return null;
+    const difference = result.primary.value - value;
+    const step = 10 ** -(result.primary.digits ?? 0);
+    if (Math.abs(difference) < step / 2)
+      return { tone: "even", label: "Level" };
+    const improved = result.higherIsBetter ? difference > 0 : difference < 0;
+    const amount = formatMetric({
+      ...result.primary,
+      value: Math.abs(difference),
+    });
+    return improved
+      ? { tone: "up", label: `${amount} better` }
+      : { tone: "down", label: `${amount} behind` };
+  }
+  const primaryOf = (other?: Session) =>
+    other && hasPrimaryMeasurement(other)
+      ? scoreSession(other).primary.value
+      : undefined;
+  const comparisons = [
+    {
+      label: "Your best",
+      value: bestIsMeasured ? formatMetric(scoreSession(best!).primary) : "—",
+      delta:
+        best?.id === session.id
+          ? history.length > 1
+            ? { tone: "up", label: "This session" }
+            : null
+          : compareTo(primaryOf(best)),
+    },
+    {
+      label: "Last time",
+      value: previous ? formatPrimary(previous) : "First try",
+      delta: compareTo(primaryOf(previous)),
+    },
+    {
+      label: "Typical",
+      value: typical,
+      delta: measuredHistory.length > 2 ? compareTo(typicalValue) : null,
+    },
+  ];
   return (
     <div className="page results-page" style={accentStyle(game.category)}>
       {!!session.flags.length && (
@@ -203,22 +266,29 @@ export default function Results() {
           </div>
         </div>
         <div className="result-comparisons">
-          <div>
-            <span>Your best</span>
-            <strong>
-              {best && hasPrimaryMeasurement(best)
-                ? formatMetric(scoreSession(best).primary)
-                : "—"}
-            </strong>
-          </div>
-          <div>
-            <span>Last time</span>
-            <strong>{previous ? formatPrimary(previous) : "First try!"}</strong>
-          </div>
-          <div>
-            <span>Typical</span>
-            <strong>{typical}</strong>
-          </div>
+          {comparisons.map(({ label, value, delta }) => (
+            <div key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+              {delta ? (
+                <small className={`delta ${delta.tone}`}>
+                  {delta.tone === "up" && <TrendingUp size={13} />}
+                  {delta.tone === "down" && <TrendingDown size={13} />}
+                  {delta.label}
+                </small>
+              ) : (
+                <small className="delta">&nbsp;</small>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="result-trials">
+          <TrialChart session={session} />
+          <p className="small-note">
+            {game.id === "orbit-track"
+              ? "Tracking error across the session. Lower is steadier."
+              : `${session.trials.length} trials · tinted bars are errors, false starts, or timeouts.`}
+          </p>
         </div>
       </section>
       <div className="result-actions">
@@ -286,11 +356,10 @@ export default function Results() {
               <h2>This session</h2>
               <span className="muted">{session.trials.length} trials</span>
             </div>
-            <TrialChart session={session} />
             <p className="small-note">
               {game.id === "orbit-track"
-                ? "Lower bars show less tracking error. Display samples are spaced through the full recording."
-                : "Each bar is a trial. Pink bars are errors, false starts, or timeouts."}
+                ? "The chart above shows display samples spaced through the full recording."
+                : "Every trial, in order, as recorded."}
             </p>
             <details>
               <summary>View all trial data</summary>

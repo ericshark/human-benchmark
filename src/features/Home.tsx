@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Check, Clock3, Play } from "lucide-react";
+import { ArrowRight, Check, Clock3, Play, ShieldCheck } from "lucide-react";
 import { useApp } from "../app/AppContext";
 import { useOnline } from "../app/OnlineContext";
 import {
@@ -11,7 +11,7 @@ import {
   introGames,
 } from "../games/registry";
 import { bestSession, formatPrimary } from "../domain/scoring";
-import { GameCard } from "../components/GameCard";
+import { HeroArt } from "../components/HeroArt";
 import { Icon } from "../components/Icon";
 import {
   currentStreak,
@@ -75,7 +75,18 @@ export default function Home() {
                 Browse games
               </Link>
             </div>
+            <div className="up-next-meta">
+              <span>
+                <Clock3 size={13} />
+                About 7 minutes
+              </span>
+              <span>
+                <ShieldCheck size={13} />
+                No account · results stay in this browser
+              </span>
+            </div>
           </div>
+          <HeroArt />
         </section>
       ) : (
         <section className="up-next" style={accentStyle(upNextGame.category)}>
@@ -122,36 +133,72 @@ export default function Home() {
         </section>
       )}
 
-      <section className="stat-strip" aria-label="Your stats">
-        {[
-          { value: streak, label: "Day streak" },
-          { value: `${played.size}/12`, label: "Games tried" },
-          { value: records, label: "Personal bests" },
-          { value: valid.length, label: "Sessions" },
-        ].map(({ value, label }) => (
-          <div className="mini-stat" key={label}>
-            <strong>{value}</strong>
-            <span>{label}</span>
-          </div>
-        ))}
-        <Link className="text-link" to="/profile">
-          All stats <ArrowRight size={14} />
-        </Link>
-      </section>
+      {!firstVisit && (
+        <section className="stat-strip" aria-label="Your stats">
+          {[
+            { value: streak, label: "Day streak" },
+            { value: `${played.size}/12`, label: "Games tried" },
+            { value: records, label: "Personal bests" },
+            { value: valid.length, label: "Sessions" },
+          ].map(({ value, label }) => (
+            <div className="mini-stat" key={label}>
+              <strong>{value}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
+          <Link className="text-link" to="/profile">
+            All stats <ArrowRight size={14} />
+          </Link>
+        </section>
+      )}
 
       <div className="home-columns">
         <section className="home-games">
           <div className="section-heading">
-            <h2>Starter games</h2>
+            <h2>
+              Starter circuit
+              <span className="heading-count">{introProgress.length}/6</span>
+            </h2>
             <Link className="text-link" to="/games">
               All 12 games
             </Link>
           </div>
-          <div className="game-grid compact">
-            {introGames.map((id) => (
-              <GameCard key={id} game={gameById[id]} sessions={sessions} />
-            ))}
-          </div>
+          <ol className="circuit-row">
+            {introGames.map((id, index) => {
+              const game = gameById[id];
+              const done = introProgress.includes(id);
+              const best = bestSession(
+                valid.filter((session) => session.gameId === id),
+              );
+              return (
+                <li
+                  key={id}
+                  className={`${done ? "done" : ""} ${id === nextIntro ? "next" : ""}`}
+                  style={accentStyle(game.category)}
+                >
+                  <Link to={`/play/${id}?circuit=intro`}>
+                    <span className="circuit-index">
+                      {done ? (
+                        <Check size={13} strokeWidth={2.5} />
+                      ) : (
+                        String(index + 1).padStart(2, "0")
+                      )}
+                    </span>
+                    <span className="icon-tile">
+                      <Icon name={game.icon} size={18} strokeWidth={1.75} />
+                    </span>
+                    <span className="circuit-name">
+                      <strong>{game.name}</strong>
+                      <small>{getCategory(game.category).name}</small>
+                    </span>
+                    <span className="circuit-best">
+                      {best ? formatPrimary(best) : game.duration}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
         </section>
 
         <section className="card daily-card-home">

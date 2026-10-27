@@ -283,8 +283,13 @@ function GameSession({ gameId }: { gameId: GameId }) {
           </Link>
           <section className="how-to-play">
             <div className="how-to-art">
-              <span className="category-pill">{category.name}</span>
-              <Icon name={game.icon} size={72} strokeWidth={1.25} />
+              <span className="category-pill">
+                <Icon name={game.category} size={13} />
+                {category.name}
+              </span>
+              <span className="how-to-emblem" aria-hidden="true">
+                <Icon name={game.icon} size={44} strokeWidth={1.5} />
+              </span>
             </div>
             <div className="how-to-copy">
               <h1>{game.name}</h1>

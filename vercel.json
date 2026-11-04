@@ -32,8 +32,5 @@
       "source": "/((?!assets/|.*\\.[^/]+$).*)",
       "destination": "/index.html"
     }
-  ],
-  "git": {
-    "deploymentEnabled": false
-  }
+  ]
 }

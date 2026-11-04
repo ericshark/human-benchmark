@@ -28,7 +28,7 @@ The protected aggregate endpoint reads only validated, opted-in candidates. It b
 
 Run a snapshot build by sending an authenticated POST to `/functions/v1/aggregate` with its job secret. A missing request body runs a build. Do not expose the secret to the frontend, put it in a URL, or commit it. Configure a fixed publication schedule after pilot review (the plan recommends quarterly reference seasons). Do not rebuild norms after every new score.
 
-Schedule a separate daily authenticated POST with JSON `{"job":"maintenance"}`. It expires detailed cloud recordings after 90 days, preserves derived summaries, removes old rate-limit windows, and removes expired/revoked share records. Monitor job failures; retention requires the maintenance schedule to be running.
+In Supabase Cron, schedule `humanrank-daily-maintenance` for 03:00 UTC (`0 3 * * *`). POST JSON `{"job":"maintenance"}` to the `aggregate` function with the job secret in the Bearer header. Store the secret in Vault and resolve it at runtime in the scheduled SQL rather than embedding it in the job definition. It expires detailed cloud recordings after 90 days, preserves derived summaries, removes old rate-limit windows, and removes expired/revoked share records. Monitor job failures; retention requires the maintenance schedule to be running.
 
 Snapshot publication locks participant consent rows. A concurrent consent withdrawal either prevents publication or retires the new reference before the withdrawal completes. Withdrawing consent retires active affected snapshots immediately; deletion also removes identifiable records. Rebuild affected comparisons rather than continuing to serve withdrawn references.
 

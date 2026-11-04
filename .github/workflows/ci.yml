@@ -33,3 +33,17 @@ jobs:
           name: browser-test-evidence
           path: test-results/
           retention-days: 7
+
+  local-supabase:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+      - name: Start disposable Supabase and apply migrations
+        run: supabase start >/dev/null
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup

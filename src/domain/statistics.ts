@@ -1,7 +1,7 @@
 import { median } from "./scoring";
 import { gameIds, type GameId, type Session } from "./types";
 import { scoreSession } from "./scoring";
-import { categories, games } from "../games/registry";
+import { categories, games } from "../games/definitions";
 import { seededRandom } from "../engine/random";
 
 export interface RatedObservation {
